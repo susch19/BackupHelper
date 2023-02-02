@@ -1,0 +1,10 @@
+﻿.toolbox {
+    display: grid;
+    grid-template-columns: repeat(10, 10rem 1rem);
+}
+
+.row{
+    margin-bottom: 1em;
+    margin-top: 1em;
+    width:fit-content;
+}

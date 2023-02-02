@@ -1,0 +1,39 @@
+﻿@using BackupRestore.Data;
+<li hidden="@(!Item.IsExtended && Item.Parent is not null)">
+    <div @onclick="()=>ExpandItem(Item)" hidden="@(!Item.IsExtended && Item.Parent is not null)">@Item.Name</div>
+
+    @if (Item.Children != null && Item.Children.Any())
+    {
+        @*Items="@Item.Children"*@
+        <ul class="@Level">
+                <Virtualize  ItemsProvider="@GetRows" Context="child" @ref="virtualizeComponent">
+                    <ShowItem  Item=@child Level="@(Level + 1)" @key=child.FullPath>
+                        <Recursive Item="child" Level="@(Level + 1)" />
+                    </ShowItem>
+                </Virtualize>
+        </ul>
+    }
+</li>
+<div hidden="@(Item.IsExtended || Item.Parent is null)">
+
+</div>
+
+
+@code {
+    [Parameter] public FileDisplayInfo Item { get; set; }
+    [Parameter] public int Level { get; set; }
+    private Virtualize<FileDisplayInfo>? virtualizeComponent;
+
+    private void ExpandItem(FileDisplayInfo item){
+        item.Children.ForEach(x=>x.IsExtended = !x.IsExtended);
+        virtualizeComponent?.RefreshDataAsync();
+    }
+    
+    private ValueTask<ItemsProviderResult<FileDisplayInfo>> GetRows(ItemsProviderRequest request)
+    {
+        var children = Item.Children.Where(x=>x.IsExtended).ToArray();
+        return new(new ItemsProviderResult<FileDisplayInfo>(
+            children.Skip(request.StartIndex).Take(request.Count),
+            children.Length));
+    }
+}
