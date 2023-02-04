@@ -6,16 +6,20 @@ using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Security.Policy;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
 namespace BackupFileIndexer;
 
-public class BackupIndexer
+public partial class BackupIndexer
 {
+    const byte CurrentSupportedHeaderVersion = 1;
+
     public void CreateMetaDataFiles(BackupConfig backupConfig)
     {
         if (backupConfig is null)
@@ -46,9 +50,16 @@ public class BackupIndexer
                     using SevenZipExtractor extractor = new(file.FullName, password);
 
                     string metaDataFileName = GetMetaDataFileName(file);
+
                     if (File.Exists(metaDataFileName))
                     {
-                        continue;
+                        (MetaDataHeader header, byte[] iv) header;
+                        using (var fs = File.OpenRead(metaDataFileName))
+                            header = BackupEncryptionHelper.ReadHeader(fs);
+                        if (header.header.Version != CurrentSupportedHeaderVersion)
+                            File.Delete(metaDataFileName);
+                        else
+                            continue;
                     }
 
                     (string, DateTime)[] dataLines = extractor.ArchiveFileData.Select(x => (x.FileName, x.LastWriteTime)).ToArray();
@@ -59,27 +70,47 @@ public class BackupIndexer
                     {
                         string before = GetMetaDataFileName(files[o - 1]);
                         using var fs = File.OpenRead(before);
-                        (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(pw, fs);
+                        var header = BackupEncryptionHelper.ReadHeader(fs);
+
+                        (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(pw, fs, header.iv);
 
                         var index = fileNameIndex.GetNextIndex;
-                        fileNameIndex.Index[index] = file.Name;
+                        fileNameIndex.Index[index] = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
                     }
                     else
                     {
                         fileNameIndex = new();
                         var index = fileNameIndex.GetNextIndex;
-                        fileNameIndex.Index[index] = file.Name;
+                        fileNameIndex.Index[index] = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
                     }
 
                     {
+                        BackupEncryptionHelper.SortFileNodes(returnValues);
                         using var fs = File.OpenWrite(metaDataFileName);
-                        BackupEncryptionHelper.SaveMetaDataFile(pw, fs, returnValues, fileNameIndex);
+                        var header = new MetaDataHeader() { Version = CurrentSupportedHeaderVersion };
+                        BackupEncryptionHelper.SaveMetaDataFile(pw, fs, header, fileNameIndex, returnValues);
                     }
                 }
             }
         }
+    }
+
+    [GeneratedRegex("[0-4]{4}-[0-9]{2}-[0-9]{2}")]
+    private partial Regex GetDateRegex();
+    const string datePattern = "yyyy-MM-dd HH;mm;ss";
+
+    private DateTime GetCreateDateOfBackup(string name)
+    {
+        var match = GetDateRegex().Match(name);
+        if (match.Success)
+        {
+
+            if (DateTime.TryParseExact(name[match.Index..(match.Index + datePattern.Length)], datePattern, System.Globalization.CultureInfo.CurrentCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var dateTime))
+                return dateTime;
+        }
+        return new DateTime(2000, 01, 01);
     }
 
 

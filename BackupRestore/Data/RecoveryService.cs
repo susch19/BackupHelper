@@ -22,7 +22,21 @@ public class RecoveryService
     {
         using var uploadMS = new MemoryStream(files.FileContent);
 
-        return BackupEncryptionHelper.DecryptMetaData<FileDisplayInfo>(Encoding.UTF8.GetBytes(password), uploadMS);
+        var header = BackupEncryptionHelper.ReadHeader(uploadMS);
 
+        return BackupEncryptionHelper.DecryptMetaData<FileDisplayInfo>(Encoding.UTF8.GetBytes(password), uploadMS, header.iv);
+
+    }
+
+    public async Task RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
+    {
+        var grouped = nodes
+            .GroupBy(x => x.HistoryFileSelected == ushort.MaxValue ? x.BackupFileIndeces.Last() : x.HistoryFileSelected);
+        foreach (var item in grouped.OrderBy(x => x.Key))
+        {
+            var dirInfo = Directory.CreateDirectory(restorePath);
+            using SevenZipExtractor extractor = new(index.Index[item.Key].FullPath, password);
+            extractor.ExtractFiles(dirInfo.FullName, item.Select(x => x.FullPath).ToArray());
+        }
     }
 }

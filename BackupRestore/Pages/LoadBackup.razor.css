@@ -1,6 +1,6 @@
 ﻿.toolbox {
     display: grid;
-    grid-template-columns: repeat(10, 10rem 1rem);
+    grid-template-columns: repeat(5, 10rem 1rem);
 }
 
 .row{
@@ -8,3 +8,30 @@
     margin-top: 1em;
     width:fit-content;
 }
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    position: absolute;
+    z-index: 1;
+    background-color: white;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    padding: 12px 16px;
+}
+
+.dropdown ul {
+    list-style: none;
+    padding: 0;
+}
+
+.dropdown li {
+    padding: 8px;
+}
+
+    .dropdown li input[type=checkbox] {
+        margin-right: 8px;
+    }

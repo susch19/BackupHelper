@@ -12,7 +12,11 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
 
     private bool isSelected;
     public bool IsSelected { get => isSelected; set { if (isSelected == value) return; isSelected = value; ToggleOther(); } }
-    public bool IsExpanded { get => (Parent is null || (isExpanded && Parent.IsExpanded)); set => isExpanded = value; }
+    public bool IsExpanded { get => (isExpanded && (Parent is null || Parent.IsExpanded)); set => isExpanded = value; }
+    public bool AnyChildSelected => Children.Any(x => x.IsSelected || x.AnyChildSelected);
+
+    public ushort HistoryFileSelected { get; set; } = ushort.MaxValue;
+
     public new List<FileDisplayInfo> Children { get; set; } = new();
     public new FileDisplayInfo? Parent { get; set; }
 
