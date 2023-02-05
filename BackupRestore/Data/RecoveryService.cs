@@ -8,26 +8,34 @@ using System.Text;
 
 namespace BackupRestore.Data;
 
-public class MetaDataFileUpload
-{
-    public string FileName { get; set; }
-    public byte[] FileContent { get; set; }
-}
-
 
 public class RecoveryService
 {
     [HttpPost]
-    public (BackupFileNameIndex, List<FileDisplayInfo>) GetBackupInformation(MetaDataFileUpload files, string password)
+    public (BackupFileNameIndex, List<FileDisplayInfo>) GetBackupInformation(string path, string password)
     {
-        using var uploadMS = new MemoryStream(files.FileContent);
+        using var fs = File.OpenRead(path);
 
-        var header = BackupEncryptionHelper.ReadHeader(uploadMS);
+        var header = BackupEncryptionHelper.ReadHeader(fs);
 
-        return BackupEncryptionHelper.DecryptMetaData<FileDisplayInfo>(Encoding.UTF8.GetBytes(password), uploadMS, header.iv);
+        return BackupEncryptionHelper.DecryptMetaData<FileDisplayInfo>(Encoding.UTF8.GetBytes(password), fs, header.iv);
 
     }
 
+    public string GetFilePath(string filter)
+    {
+        var file = NativeFileDialogSharp.Dialog.FileOpen(filter);
+        if (file.IsOk)
+            return file.Path;
+        return "";
+    }
+    public string GetDirectoryPath()
+    {
+        var dir = NativeFileDialogSharp.Dialog.FolderPicker();
+        if (dir.IsOk)
+            return dir.Path;
+        return "";
+    }
     public async Task RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
     {
         var grouped = nodes

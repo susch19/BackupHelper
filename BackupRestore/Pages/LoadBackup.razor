@@ -1,8 +1,9 @@
 ﻿@page "/restore"
-@using BackupRestore.Data;
 @using Backup.Shared
+@using BackupRestore.Data;
 @using System.Text;
 @using Radzen.Blazor;
+@using System.Text.RegularExpressions;
 @using static System.Net.WebRequestMethods;
 @inject RecoveryService RecoveryService
 
@@ -10,13 +11,15 @@
 
 <h1>Restore</h1>
 
-
-
 @if (fileInfos.Count < 1)
 {
-    <div class="row">
-        <InputFile OnChange="@OnInputFileChange" accept=".metadata.zip.aes" />
+    <div class="metadata-select">
+        <button @onclick="SelectFilePath">Select Metadata File</button>
+        <div />
+        <InputText @bind-Value="filePath"></InputText>
+        @*<InputFile OnChange="@OnInputFileChange" accept=".metadata.zip.aes" />*@
     </div>
+
     <div class="row">
         <InputText @bind-Value="Password" type="password" placeholder="Password" />
     </div>
@@ -24,22 +27,29 @@
 }
 else if (storeView)
 {
-    <div class="toolbox row">
-        <span>Speicherpfad:</span>
-        <div />
-        <div style="grid-column: 3 / span 9">
-            <InputText style="width: 100%;" @bind-Value="path" />
+    <div class="store-grid">
+        <div>
+            <span>Speicherpfad:</span>
         </div>
-        <button @onclick="SaveBackup">Restore</button>
-        <div />
-        <button @onclick="Reset">New</button>
+        <div>
+            <InputText @bind-Value="dirPath" />
+        </div>
+        <div>
+            <button @onclick="SelectDirPath">Select</button>
+        </div>
+        <div>
+            <button @onclick="SaveBackup" disabled="@(string.IsNullOrWhiteSpace(dirPath) ? true : false)">Restore</button>
+        </div>
+        <div>
+            <button @onclick="Reset">Start over</button>
+        </div>
 
     </div>
     <Virtualize Context="context" ItemsProvider="@GetNodes" @ref="virtualizeComponent">
         <ShowItem Item=@context @key="context.node.FullPath">
             <div style="display: grid; grid-template-columns: 1em max-content 1em max-content; margin-left: @(context.level * 20)px">
                 <svg viewBox="0 0 16 16" style="margin-top: 0.3rem;height: 1em; vertical-align: middle; transform: rotate(@(context.node.IsExpanded ? 90 : 0)deg); @(context.node.Children.Any() ? "cursor: pointer" : "")" @onclick="() => ChangeNode(context.node)" @onclick:stopPropagation>
-                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "black" : "transparent")" fill="transparent" stroke-width="2" />
+                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "white" : "transparent")" fill="transparent" stroke-width="2" />
                 </svg>
                 <RadzenLabel Text="@context.node.Name" Style="margin-left: 8px; vertical-align: middle;" />
                 <div />
@@ -55,65 +65,41 @@ else if (storeView)
 }
 else
 {
-    <div class="toolbox row">
+    <div class="toolbox-grid">
         <RadzenButton Click="()=>{ storeView = true; }" Text="Save" />
         <div></div>
         <RadzenButton Click="()=>{ fileInfos.Clear(); }" Text="Load" />
     </div>
-    <div>
-        @*<RadzenTextBox Placeholder="Search..." Change=@(args => { filter = args; virtualizeComponent?.RefreshDataAsync(); }) />*@
+    <br />
+    <div class="search-toolbox">
+        <RadzenTextBox @bind-Value="filter" />
+        <div />
+        <RadzenCheckBox @bind-Value=fullTextSearch TValue="bool" @onclick:stopPropagation />
+        <RadzenLabel Text="FullTextSearch" Style="margin-left: 8px; vertical-align: middle;" />
+        <div />
+        <RadzenButton Click="()=>{ Search(); }" Text="Search" />
+        <div />
+        <RadzenButton Click="()=>{ ClearFilter();  }" Text="Clear" />
     </div>
+    <br />
+
     <Virtualize Context="context" ItemsProvider="@GetNodes" @ref="virtualizeComponent">
         <ShowItem Item=@context @key="context.node.FullPath">
             <div style="display: grid; grid-template-columns: 1em 1em max-content 1em max-content; margin-left: @(context.level * 20)px">
                 <svg viewBox="0 0 16 16" style="margin-top: 0.3rem;height: 1em; vertical-align: middle; transform: rotate(@(context.node.IsExpanded ? 90 : 0)deg); @(context.node.Children.Any() ? "cursor: pointer" : "")" @onclick="() => ChangeNode(context.node)" @onclick:stopPropagation>
-                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "black" : "transparent")" fill="transparent" stroke-width="2" />
+                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "white" : "transparent")" fill="transparent" stroke-width="2" />
                 </svg>
                 <RadzenCheckBox @bind-Value=@context.node.IsSelected TValue="bool" @onclick:stopPropagation />
                 <RadzenLabel Text="@context.node.Name" Style="margin-left: 8px; vertical-align: middle;" />
                 <div />
                 <div style="visibility:@(context.node.BackupFileIndeces.Count == 0 ? "hidden" : "visible")">
                     <InputSelect @bind-Value="context.node.HistoryFileSelected">
-                        @foreach (var item in context.node.BackupFileIndeces.Select(x => (id: x, index: fileNameIndex.Index[x])))
+                        @foreach (var item in context.node.BackupFileIndeces)
                         {
-                            <option value="@item.id">@item.index.CreateDate.ToShortDateString()</option>
+                            <option value="@item">@fileNameIndex.Index[item].CreateDate.ToShortDateString()</option>
                         }
                     </InputSelect>
                 </div>
-                @*<div>
-                        @foreach (var item in context.node.BackupFileIndeces.Select(x => fileNameIndex.Index[x]))
-                        {
-                            <span style="margin-left:1rem">@item.CreateDate.ToShortDateString()</span>
-                        }
-                    </div>*@
-                @*<div class="dropdown">
-                        <button @onclick="ToggleDropdown">
-                            @string.Join(", ", context.node.HistoryFilesSelected.Select(x=> fileNameIndex.Index[x].CreateDate.ToShortDateString()))
-                        </button>
-                        <div class="dropdown-content" style="display:none">
-                            <ul>
-                                @foreach (var option in fileNameIndex.Index)
-                                {
-                                    <li>
-                                        <input type="checkbox" @bind="option.IsSelected" @onclick="(e)=>context.node.HistoryFilesSelected" />
-                                        <label>@option.Value.CreateDate.ToShortDateString()</label>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
-                        <input type="hidden" @bind="SelectedValues" />
-                    </div>*@
-
-
-                @*<InputSelect @bind-Value="context.node.HistoryFilesSelected">
-                        @foreach (var item in context.node.BackupFileIndeces.Select(x => (id: x, name: fileNameIndex.Index[x].CreateDate.ToShortDateString())))
-                        {
-                            <option value="@item.id">@item.name</option>
-                        }
-                    </InputSelect>*@
-                @*<div style="visibility:@(context.node.BackupFileIndeces.Count == 0 ? "hidden" : "visible")">
-
-                    </div>*@
             </div>
 
         </ShowItem>
@@ -129,69 +115,89 @@ else
     private BackupFileNameIndex fileNameIndex = new();
     private Virtualize<(BackupRestore.Data.FileDisplayInfo, int)>? virtualizeComponent;
 
-    private string path = "";
+    private string dirPath = "";
+    private string filePath = "";
+
     private string filter = "";
+    private bool fullTextSearch = false;
+    private Regex? filterRegex = null;
     private bool storeView = false;
+    (BackupRestore.Data.FileDisplayInfo node, int level)[]? arr;
 
-    IBrowserFile? selectedFile;
-
-
+    private void Search()
+    {
+        filterRegex = new Regex(filter);
+        ChangeTreeView();
+    }
+    private void ClearFilter()
+    {
+        filterRegex = null;
+        filter = "";
+        ChangeTreeView();
+    }
     private void Reset()
     {
         storeView = false;
         filter = "";
-        selectedFile = null;
         fileInfos.Clear();
         flatFileInfos.Clear();
         fileNameIndex = new();
     }
 
-    private void OnInputFileChange(InputFileChangeEventArgs e)
+    private void SelectFilePath()
     {
-        selectedFile = e.File;
-
+        filePath = RecoveryService.GetFilePath("metadata.zip.aes");
+    }
+    private void SelectDirPath()
+    {
+        dirPath = RecoveryService.GetDirectoryPath();
     }
 
     private async Task LoadData()
     {
-        if (selectedFile is null || selectedFile.Size < 1)
+
+        if (string.IsNullOrWhiteSpace(filePath))
             return;
 
-        Stream stream = selectedFile.OpenReadStream(512000000);
-        using MemoryStream ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-
-        var uploadedFile = new MetaDataFileUpload();
-        uploadedFile.FileName = selectedFile.Name;
-        uploadedFile.FileContent = ms.ToArray();
-        selectedFile = null;
         storeView = false;
-        (fileNameIndex, fileInfos) = RecoveryService.GetBackupInformation(uploadedFile, Password);
+        (fileNameIndex, fileInfos) = RecoveryService.GetBackupInformation(filePath, Password);
         GenerateFlatList();
+        await ChangeTreeView();
+    }
+
+    private async Task ChangeTreeView()
+    {
+        if (filterRegex is null)
+            arr = flatFileInfos
+            .Where(x =>
+                (x.node.Parent is null || x.node.Parent.IsExpanded)
+                && (!storeView
+                    || (x.node.IsSelected || x.node.AnyChildSelected)))
+            .ToArray();
+        else
+            arr = flatFileInfos
+                .Where(x => !storeView && FileDisplayInfo.Matches(x.node, filterRegex, fullTextSearch))
+                .ToArray();
+        var virtComp = virtualizeComponent;
+        if (virtComp is not null)
+            await virtComp?.RefreshDataAsync();
     }
 
     private ValueTask<ItemsProviderResult<(BackupRestore.Data.FileDisplayInfo node, int level)>> GetNodes(ItemsProviderRequest request)
     {
-        (BackupRestore.Data.FileDisplayInfo node, int level)[] arr;
-        //if (string.IsNullOrWhiteSpace(filter))
-        arr = flatFileInfos
-            .Where(x =>
-            (x.node.Parent is null
-                || x.node.Parent.IsExpanded)
-            && (!storeView
-                || (x.node.IsSelected
-                    || x.node.AnyChildSelected)))
-            .ToArray();
-        //else
-        //    arr = flatFileInfos.Where(x => MemoryExtensions.Contains(x.node.Name, filter, StringComparison.OrdinalIgnoreCase)
-        //        || (MemoryExtensions.Contains(x.node.FullPath, filter, StringComparison.OrdinalIgnoreCase)
-        //            && (x.node.Parent is null || x.node.Parent.IsExpanded))).ToArray();
+        var localArr = arr;
+        if (localArr is null)
+            localArr = Array.Empty<(BackupRestore.Data.FileDisplayInfo node, int level)>();
 
-        var items = arr.Skip(request.StartIndex).Take(request.Count);
+        //arr = flatFileInfos.Where(x => MemoryExtensions.Contains(x.node.Name, filter, StringComparison.OrdinalIgnoreCase)
+        //|| (MemoryExtensions.Contains(x.node.FullPath, filter, StringComparison.OrdinalIgnoreCase)
+        //    && (x.node.Parent is null || x.node.Parent.IsExpanded))).ToArray();
+
+        var items = localArr.Skip(request.StartIndex).Take(request.Count);
 
         return new(new ItemsProviderResult<(BackupRestore.Data.FileDisplayInfo, int)>(
             items,
-            arr.Length));
+            localArr.Length));
     }
 
 
@@ -220,13 +226,13 @@ else
 
     private async Task SaveBackup()
     {
-        await RecoveryService.RestoreFiles(path, Password, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
+        await RecoveryService.RestoreFiles(dirPath, Password, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
 
     }
     private async Task ChangeNode(FileDisplayInfo node)
     {
         node.IsExpanded = !node.IsExpanded;
-        await virtualizeComponent?.RefreshDataAsync();
+        await ChangeTreeView();
     }
 
 }

@@ -1,12 +1,32 @@
-﻿.toolbox {
+﻿.toolbox-grid {
     display: grid;
     grid-template-columns: repeat(5, 10rem 1rem);
 }
 
-.row{
+.store-grid {
+    display: grid;
+    grid-template-columns: 7rem 14rem 5rem 6rem 7rem;
+}
+
+    .store-grid div {
+        margin-left: 1rem;
+        width: fit-content;
+    }
+
+.metadata-select {
+    display: grid;
+    grid-template-columns: 12rem 1rem calc(100% - 15rem);
+}
+
+.search-toolbox {
+    display: grid;
+    grid-template-columns: 30rem 1rem 1rem 9rem 1rem 5rem 1rem 5rem;
+}
+
+.row {
     margin-bottom: 1em;
     margin-top: 1em;
-    width:fit-content;
+    width: fit-content;
 }
 
 .dropdown {

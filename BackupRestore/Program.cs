@@ -1,36 +1,47 @@
 using BackupRestore.Data;
 
+using MatBlazor;
+
+//using ElectronNET.API;
+//using ElectronNET.API.Entities;
+
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
+using Photino.Blazor;
+
 using SevenZip;
+namespace BackupRestore;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
-builder.Services.AddSingleton<RecoveryService>();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+public class Programm
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        SevenZipBase.SetLibraryPath("C:\\Program Files\\7-Zip\\7z.dll");
+        var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
+
+        // Add services to the container.
+        builder.Services.AddSingleton<RecoveryService>();
+        builder.RootComponents.Add<App>("app");
+        builder.Services.AddMatBlazor();
+
+        var app = builder.Build();
+
+        app.MainWindow
+#if DEBUG
+            .SetDevToolsEnabled(true)
+#endif
+            .SetWidth(1400)
+            .SetHeight(700)
+            .SetLogVerbosity(0)
+            .SetTitle("BackupRestore");
+
+        AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
+        {
+            app.MainWindow.OpenAlertWindow("Fatal exception", error.ExceptionObject.ToString());
+        };
+        app.Run();
+    }
+
 }
-
-app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
-
-SevenZipBase.SetLibraryPath("C:\\Program Files\\7-Zip\\7z.dll");
-
-app.Run();

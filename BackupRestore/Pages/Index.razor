@@ -1,4 +1,7 @@
 ﻿@page "/"
+@using BackupRestore.Data;
+
+@inject RecoveryService RecoveryService
 
 <PageTitle>Home</PageTitle>
 
@@ -11,3 +14,25 @@
 <span>
     Currently only loading and browsing are supported, but restoring the actual backup will be one of the next priorities.
 </span>
+
+@*<button class="row" @onclick="GetFile">Get File Path</button>
+<span>@pathFile</span>
+
+<button class="row" @onclick="GetDir">Get Folder Path</button>
+<span>@pathDir</span>
+
+@code {
+    private string pathDir = "";
+    private string pathFile = "";
+
+    private void GetDir()
+    {
+        pathDir = RecoveryService.GetDirectoryPath();
+
+    }
+    private void GetFile()
+    {
+        pathFile = RecoveryService.GetFilePath("");
+
+    }
+}*@

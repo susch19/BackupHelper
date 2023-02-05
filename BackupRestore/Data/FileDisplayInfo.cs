@@ -2,6 +2,7 @@ using Backup.Shared;
 
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace BackupRestore.Data;
 
@@ -44,6 +45,20 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
         if (!isSelected && Parent is not null)
             ToggleParent(this);
 
+    }
+
+    public static bool Matches(FileDisplayInfo node, Regex filter, bool fulltext)
+    {
+        if(!fulltext)
+            return filter.IsMatch(node.Name) || node.Children.Any(x => Matches(x, filter, fulltext));
+        var match =filter.Match(node.Name);
+        if (!match.Success || match.Index != 0 || match.Length != node.Name.Length)
+        {
+            if (node.Children.Any(x => Matches(x, filter, fulltext)))
+                return true;
+            return false;
+        }
+        return true;
     }
 
     public static FileDisplayInfo Deserialize(BinaryReader br, FileDisplayInfo? parent)
