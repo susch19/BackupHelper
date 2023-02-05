@@ -53,8 +53,8 @@ else if (storeView)
                 </svg>
                 <RadzenLabel Text="@context.node.Name" Style="margin-left: 8px; vertical-align: middle;" />
                 <div />
-                <div style="visibility:@(context.node.HistoryFileSelected == ushort.MaxValue ? "hidden" : "visible")">
-                    @if (context.node.HistoryFileSelected != ushort.MaxValue)
+                <div style="visibility:@(context.node.HistoryFileSelected == uint.MaxValue ? "hidden" : "visible")">
+                    @if (context.node.HistoryFileSelected != uint.MaxValue)
                     {
                         @fileNameIndex.Index[context.node.HistoryFileSelected].CreateDate.ToShortDateString()
                     }

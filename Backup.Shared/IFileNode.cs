@@ -4,7 +4,7 @@ namespace Backup.Shared;
 
 public interface IFileNode
 {
-    HashSet<ushort> BackupFileIndeces { get; set; }
+    HashSet<uint> BackupFileIndeces { get; set; }
     DateTime ChangeDate { get; set; }
     string FullPath { get; set; }
     string Name { get; set; }

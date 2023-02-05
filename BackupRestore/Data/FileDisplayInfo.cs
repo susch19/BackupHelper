@@ -16,7 +16,7 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
     public bool IsExpanded { get => (isExpanded && (Parent is null || Parent.IsExpanded)); set => isExpanded = value; }
     public bool AnyChildSelected => Children.Any(x => x.IsSelected || x.AnyChildSelected);
 
-    public ushort HistoryFileSelected { get; set; } = ushort.MaxValue;
+    public uint HistoryFileSelected { get; set; } = uint.MaxValue;
 
     public new List<FileDisplayInfo> Children { get; set; } = new();
     public new FileDisplayInfo? Parent { get; set; }
@@ -66,10 +66,10 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
         var name = br.ReadString();
 
         var fn = new FileDisplayInfo(name, parent);
-        var indices = br.ReadUInt16();
+        var indices = br.ReadInt32();
         for (int i = 0; i < indices; i++)
         {
-            fn.BackupFileIndeces.Add(br.ReadUInt16());
+            fn.BackupFileIndeces.Add(br.ReadUInt32());
         }
         var children = br.ReadInt32();
         for (int i = 0; i < children; i++)

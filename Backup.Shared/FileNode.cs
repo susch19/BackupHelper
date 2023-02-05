@@ -6,7 +6,7 @@ public class FileNode : IFileNode<FileNode>, IFileNode
     public string Name { get; set; }
     public string FullPath { get; set; }
     public DateTime ChangeDate { get; set; }
-    public HashSet<ushort> BackupFileIndeces { get; set; } = new();
+    public HashSet<uint> BackupFileIndeces { get; set; } = new();
     public FileNode? Parent { get; set; }
     public List<FileNode> Children { get; set; } = new();
 
@@ -28,7 +28,7 @@ public class FileNode : IFileNode<FileNode>, IFileNode
     {
         bw.Write(Name);
 
-        bw.Write((ushort)BackupFileIndeces.Count);
+        bw.Write(BackupFileIndeces.Count);
         foreach (var item in BackupFileIndeces)
         {
             bw.Write(item);
@@ -45,10 +45,10 @@ public class FileNode : IFileNode<FileNode>, IFileNode
         var name = br.ReadString();
 
         var fn = new FileNode(name, parent);
-        var indices = br.ReadUInt16();
+        var indices = br.ReadInt32();
         for (int i = 0; i < indices; i++)
         {
-            fn.BackupFileIndeces.Add(br.ReadUInt16());
+            fn.BackupFileIndeces.Add(br.ReadUInt32());
         }
         var children = br.ReadInt32();
         for (int i = 0; i < children; i++)

@@ -18,12 +18,29 @@ namespace BackupFileIndexer;
 
 public partial class BackupIndexer
 {
-    const byte CurrentSupportedHeaderVersion = 1;
+    const byte CurrentSupportedHeaderVersion = 2;
 
     public void CreateMetaDataFiles(BackupConfig backupConfig)
     {
         if (backupConfig is null)
             throw new ArgumentNullException(nameof(backupConfig));
+
+        var globalIndexPW = Encoding.UTF8.GetBytes(backupConfig.GlobalIndex.Password);
+
+        BackupFileNameIndex globalIndex = new();
+        var globalNodes = new List<FileNode>();
+        if (File.Exists(backupConfig.GlobalIndex.Path))
+        {
+            using var fs = File.OpenRead(backupConfig.GlobalIndex.Path);
+
+            var header = BackupEncryptionHelper.ReadHeader(fs);
+            if (header.header.Version == CurrentSupportedHeaderVersion)
+            {
+                var (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(globalIndexPW, fs, header.iv);
+                globalIndex = fileNameIndex;
+                globalNodes = returnValues;
+            }
+        }
 
         foreach ((string backupPath, string password) in backupConfig.BackupPaths)
         {
@@ -62,6 +79,7 @@ public partial class BackupIndexer
                             continue;
                     }
 
+
                     (string, DateTime)[] dataLines = extractor.ArchiveFileData.Select(x => (x.FileName, x.LastWriteTime)).ToArray();
 
                     List<FileNode> returnValues = new();
@@ -74,16 +92,24 @@ public partial class BackupIndexer
 
                         (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(pw, fs, header.iv);
 
-                        var index = fileNameIndex.GetNextIndex;
-                        fileNameIndex.Index[index] = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+                        var index = globalIndex.GetNextIndex;
+                        fileNameIndex.Index[index] 
+                            = globalIndex.Index[index] 
+                            = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
+                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
                     }
                     else
                     {
                         fileNameIndex = new();
-                        var index = fileNameIndex.GetNextIndex;
-                        fileNameIndex.Index[index] = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+                        var index = globalIndex.GetNextIndex;
+                        fileNameIndex.Index[index]
+                            = globalIndex.Index[index] 
+                            = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
+                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
                     }
 
                     {
@@ -94,6 +120,15 @@ public partial class BackupIndexer
                     }
                 }
             }
+        }
+
+
+        {
+            File.Delete(backupConfig.GlobalIndex.Path);
+            BackupEncryptionHelper.SortFileNodes(globalNodes);
+            using var fs = File.OpenWrite(backupConfig.GlobalIndex.Path);
+            var header = new MetaDataHeader() { Version = CurrentSupportedHeaderVersion };
+            BackupEncryptionHelper.SaveMetaDataFile(globalIndexPW, fs, header, globalIndex, globalNodes);
         }
     }
 
@@ -106,7 +141,6 @@ public partial class BackupIndexer
         var match = GetDateRegex().Match(name);
         if (match.Success)
         {
-
             if (DateTime.TryParseExact(name[match.Index..(match.Index + datePattern.Length)], datePattern, System.Globalization.CultureInfo.CurrentCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var dateTime))
                 return dateTime;
         }

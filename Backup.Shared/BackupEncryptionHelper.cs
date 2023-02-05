@@ -88,7 +88,7 @@ public class BackupEncryptionHelper
         }
     }
 
-    public static void ConvertToFileNodes((string, DateTime)[] dataLines, ushort index, List<FileNode> returnValues)
+    public static void ConvertToFileNodes((string, DateTime)[] dataLines, uint index, List<FileNode> returnValues)
     {
         for (int d = 0; d < dataLines.Length; d++)
         {

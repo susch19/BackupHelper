@@ -21,5 +21,6 @@ SevenZipBase.SetLibraryPath(backupConfig.SevenZipDllPath);
 
 
 
+
 var backupIndexer = new BackupIndexer();
 backupIndexer.CreateMetaDataFiles(backupConfig);
