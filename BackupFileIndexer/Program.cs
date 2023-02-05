@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using SevenZip;
 
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 IConfigurationRoot configuration = new ConfigurationBuilder()
@@ -18,8 +19,6 @@ BackupConfig backupConfig = new();
 configuration.Bind(BackupConfig.ConfigName, backupConfig);
 
 SevenZipBase.SetLibraryPath(backupConfig.SevenZipDllPath);
-
-
 
 
 var backupIndexer = new BackupIndexer();

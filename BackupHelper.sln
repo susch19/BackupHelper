@@ -9,6 +9,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Backup.Shared", "Backup.Sha
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BackupRestore", "BackupRestore\BackupRestore.csproj", "{FFA965DC-2B60-4C17-9B15-E0ED4B38853E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{DF375FFD-EA35-4D54-8D43-0F7A6C1F04BB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdysTech.CredentialManager", "AdysTech.CredentialManager\AdysTech.CredentialManager.csproj", "{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,9 +31,16 @@ Global
 		{FFA965DC-2B60-4C17-9B15-E0ED4B38853E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FFA965DC-2B60-4C17-9B15-E0ED4B38853E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FFA965DC-2B60-4C17-9B15-E0ED4B38853E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{69E4DF70-6BC7-4242-813D-E3078B7D9D5B} = {DF375FFD-EA35-4D54-8D43-0F7A6C1F04BB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {35358E92-0F5C-48BF-80F0-63801B9A9F30}

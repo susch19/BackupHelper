@@ -1,4 +1,6 @@
-﻿using Backup.Shared;
+﻿using AdysTech.CredentialManager;
+
+using Backup.Shared;
 
 using SevenZip;
 
@@ -7,6 +9,7 @@ using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Policy;
 using System.Text;
@@ -19,13 +22,36 @@ namespace BackupFileIndexer;
 public partial class BackupIndexer
 {
     const byte CurrentSupportedHeaderVersion = 2;
+    bool credManagerSave = true;
+
+    private byte[] GetCredentialsFor(string name, string defaultPW)
+    {
+
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            var target = "backuprestore:" + name;
+            var cred = CredentialManager.GetCredentials(target);
+            if (cred is null)
+            {
+                cred = CredentialManager.PromptForCredentials(target, ref credManagerSave, $"Please enter the ecnryption passwort for the backup of \"{name}\"", "Backup Password", name);
+            }
+            if (cred is not null)
+            {
+                if (credManagerSave)
+                    CredentialManager.SaveCredentials(target, cred);
+                return Encoding.UTF8.GetBytes(cred.Password);
+            }
+        }
+        return Encoding.UTF8.GetBytes(defaultPW);
+    }
 
     public void CreateMetaDataFiles(BackupConfig backupConfig)
     {
         if (backupConfig is null)
             throw new ArgumentNullException(nameof(backupConfig));
 
-        var globalIndexPW = Encoding.UTF8.GetBytes(backupConfig.GlobalIndex.Password);
+        byte[] globalIndexPW = GetCredentialsFor(backupConfig.GlobalIndex.Name, backupConfig.GlobalIndex.Password);
+
 
         BackupFileNameIndex globalIndex = new();
         var globalNodes = new List<FileNode>();
@@ -42,10 +68,10 @@ public partial class BackupIndexer
             }
         }
 
-        foreach ((string backupPath, string password) in backupConfig.BackupPaths)
+        foreach ((string backupName, string backupPath, string password) in backupConfig.BackupPaths)
         {
-            var pw = Encoding.UTF8.GetBytes(password);
-
+            byte[] pw = GetCredentialsFor(backupName, password);
+            
             IGrouping<string?, FileInfo>[] groupFiles =
                 backupConfig
                 .BackupPaths
@@ -93,8 +119,8 @@ public partial class BackupIndexer
                         (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(pw, fs, header.iv);
 
                         var index = globalIndex.GetNextIndex;
-                        fileNameIndex.Index[index] 
-                            = globalIndex.Index[index] 
+                        fileNameIndex.Index[index]
+                            = globalIndex.Index[index]
                             = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
 
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
@@ -105,7 +131,7 @@ public partial class BackupIndexer
                         fileNameIndex = new();
                         var index = globalIndex.GetNextIndex;
                         fileNameIndex.Index[index]
-                            = globalIndex.Index[index] 
+                            = globalIndex.Index[index]
                             = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
 
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);

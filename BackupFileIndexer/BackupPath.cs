@@ -1,1 +1,1 @@
-﻿public record BackupPath(string Path, string Password);
+﻿public record BackupPath(string Name, string Path, string Password);

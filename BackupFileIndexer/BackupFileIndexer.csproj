@@ -16,6 +16,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\AdysTech.CredentialManager\AdysTech.CredentialManager.csproj" />
 	  <ProjectReference Include="..\Backup.Shared\Backup.Shared.csproj" />
 	</ItemGroup>
 
