@@ -57,11 +57,10 @@ else
     <br />
     <RadzenCard>
         <div class="search-toolbox">
-            @*<RadzenTextBox @bind-Value="@filter" @bind:event="oninput" @onkeypress="AutoSearch" />*@
             <input placeholder="Search" @bind="filter" @bind:event="oninput" @onkeydown=AutoSearch />
             <div />
             <RadzenCheckBox @bind-Value=fullTextSearch TValue="bool" @onclick:stopPropagation />
-            <RadzenLabel Text="FullTextSearch" Style="margin-left: 8px; vertical-align: middle;" />
+            <RadzenLabel Text="Full Text Search" Style="margin-left: 8px; vertical-align: middle;" />
             <div />
             <RadzenButton Click="()=>{ Search(); }" Text="Search" />
             <div />
@@ -131,7 +130,6 @@ else
                                 || index < item.node.HistoryFileSelected)))
                     {
                         item.node.HistoryFileSelected = index;
-
                     }
                 }
                 if (item.node.Children.Count == 0 && item.node.HistoryFileSelected == uint.MaxValue)
