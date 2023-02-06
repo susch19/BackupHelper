@@ -14,6 +14,12 @@ public class BackupFileNameIndex
 
     private uint nextIndex = 0;
 
+    public BackupFileInfo this[uint key]
+    {
+        get => Index[key];
+        set => Index[key] = value;
+    }
+
     public void Serialize(BinaryWriter bw)
     {
         bw.Write((uint)Index.Count);

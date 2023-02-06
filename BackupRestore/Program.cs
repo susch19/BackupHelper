@@ -1,13 +1,11 @@
 using BackupRestore.Data;
 
-using MatBlazor;
-
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
-
 using Photino.Blazor;
 
+using Radzen;
+
 using SevenZip;
+
 namespace BackupRestore;
 
 public class Programm
@@ -21,7 +19,10 @@ public class Programm
         // Add services to the container.
         builder.Services.AddSingleton<RecoveryService>();
         builder.RootComponents.Add<App>("app");
-        builder.Services.AddMatBlazor();
+        builder.Services.AddScoped<DialogService>();
+        builder.Services.AddScoped<NotificationService>();
+        builder.Services.AddScoped<TooltipService>();
+        builder.Services.AddScoped<ContextMenuService>();
 
         var app = builder.Build();
 

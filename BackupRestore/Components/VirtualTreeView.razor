@@ -1,0 +1,81 @@
+﻿@inject RecoveryService RecoveryService
+
+<Virtualize Context="context" TItem="(BackupRestore.Data.FileDisplayInfo node, int level)" ItemSize="25" ItemsProvider="@GetNodes" @ref="virtualizeComponent">
+    <ShowItem Item=@context @key="context.node.FullPath">
+        @{
+            var hasChildren = context.node.Children.Any();
+            string radzenLabelStyle = $"margin-left: 8px; vertical-align: middle; {(hasChildren ? "" : "cursor: pointer;")}";
+
+        }
+
+        <div style="        display: grid;
+        grid-template-columns: 1em @(Selectable ? "1em" : "") max-content 1em max-content max-content;height: 25px; margin-left: @(context.level * 20)px">
+            <svg viewBox="0 0 16 16" style="margin-top: 0.3rem;height: 1em; vertical-align: middle; transform: rotate(@(context.node.IsExpanded ? 90 : 0)deg); @(hasChildren ? "cursor: pointer" : "")" @onclick="() => ChangeNode(context.node)" @onclick:stopPropagation>
+                <path d="M 4 2 l 7 6 l -7 6" stroke="@(hasChildren ? "white" : "transparent")" fill="transparent" stroke-width="2" />
+            </svg>
+            @if (Selectable)
+            {
+                <RadzenCheckBox @bind-Value=@context.node.IsSelected TValue="bool" @onclick:stopPropagation />
+            }
+
+            <RadzenLabel Text="@context.node.Name" Style="@radzenLabelStyle" @ondblclick="@((x) => { if (!hasChildren) PreviewFile(context.node); })" />
+            <div />
+
+            <div style="visibility:@((Selectable && context.node.BackupFileIndeces.Count == 0) || (!Selectable && context.node.HistoryFileSelected == uint.MaxValue) ? "hidden" : "visible")">
+                <InputSelect @bind-Value="context.node.HistoryFileSelected">
+                    @foreach (var item in context.node.BackupFileIndeces)
+                    {
+                        @if (FileNameIndex.Index[item].CreateDate.Date <= FilterDate.Date)
+                        {
+                            <option value="@item">@FileNameIndex.Index[item].CreateDate.ToShortDateString()</option>
+                        }
+                    }
+                </InputSelect>
+            </div>
+            @if (hasChildren)
+            {
+                <div />
+            }
+            else
+            {
+
+                <div />
+                @*<RadzenButton Click="()=>PreviewFile(context.node)" Text="Preview" />*@
+            }
+        </div>
+
+    </ShowItem>
+</Virtualize>
+
+@code {
+    [Parameter]
+    public Microsoft.AspNetCore.Components.Web.Virtualization.ItemsProviderDelegate<(BackupRestore.Data.FileDisplayInfo node, int level)> GetNodes { get; set; }
+
+    [Parameter]
+    public bool Selectable { get; set; }
+    [Parameter]
+    public string Password { get; set; } = "";
+
+    [Parameter]
+    public Backup.Shared.BackupFileNameIndex FileNameIndex { get; set; }
+
+    [Parameter]
+    public Action<FileDisplayInfo> ChangeNode { get; set; }
+
+    [Parameter]
+    public DateTime FilterDate { get; set; } = DateTime.Now;
+
+    private Virtualize<(BackupRestore.Data.FileDisplayInfo, int)>? virtualizeComponent;
+
+    public async Task RefreshDataAsync()
+    {
+        var virtComp = virtualizeComponent;
+        if (virtComp is not null)
+            await virtComp.RefreshDataAsync();
+    }
+
+    public async Task PreviewFile(FileDisplayInfo node)
+    {
+        RecoveryService.PreviewFile(Password, node, FileNameIndex);
+    }
+}

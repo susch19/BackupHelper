@@ -60,6 +60,15 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
         }
         return true;
     }
+    public static bool Matches(FileDisplayInfo node, BackupFileNameIndex index, DateTime min, DateTime max)
+    {
+        foreach (var item in node.BackupFileIndeces)
+        {
+            if (index[item].CreateDate.Date <= max && index[item].CreateDate.Date >= min)
+                return true;
+        }
+        return node.Children.Any(x => Matches(x, index, min, max));
+    }
 
     public static FileDisplayInfo Deserialize(BinaryReader br, FileDisplayInfo? parent)
     {

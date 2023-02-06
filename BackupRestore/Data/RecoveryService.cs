@@ -2,8 +2,12 @@ using Backup.Shared;
 
 using Microsoft.AspNetCore.Mvc;
 
+using Radzen;
+
 using SevenZip;
 
+using System.Diagnostics;
+using System.Runtime;
 using System.Text;
 
 namespace BackupRestore.Data;
@@ -36,7 +40,7 @@ public class RecoveryService
             return dir.Path;
         return "";
     }
-    public async Task RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
+    public void RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
     {
         var grouped = nodes
             .GroupBy(x => x.HistoryFileSelected == ushort.MaxValue ? x.BackupFileIndeces.Last() : x.HistoryFileSelected);
@@ -46,5 +50,17 @@ public class RecoveryService
             using SevenZipExtractor extractor = new(index.Index[item.Key].FullPath, password);
             extractor.ExtractFiles(dirInfo.FullName, item.Select(x => x.FullPath).ToArray());
         }
+    }
+
+    public void PreviewFile(string password, FileDisplayInfo node, BackupFileNameIndex index)
+    {
+        using SevenZipExtractor extractor = new(index.Index[node.HistoryFileSelected].FullPath, password);
+        var outputPath = Path.Combine(Path.GetTempPath(), node.Name);
+        using (var fs = File.OpenWrite(outputPath))
+            extractor.ExtractFile(node.FullPath, fs);
+
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo(outputPath) { UseShellExecute = true };
+        process.Start();
     }
 }

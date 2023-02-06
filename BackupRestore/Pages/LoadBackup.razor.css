@@ -3,9 +3,14 @@
     grid-template-columns: repeat(5, 10rem 1rem);
 }
 
+.parameter {
+    display: grid;
+    grid-template-columns: 10rem 10rem;
+}
+
 .store-grid {
     display: grid;
-    grid-template-columns: 7rem 14rem 5rem 6rem 7rem;
+    grid-template-columns: 7rem 14rem 6rem 7rem 8rem;
 }
 
     .store-grid div {
@@ -15,7 +20,7 @@
 
 .metadata-select {
     display: grid;
-    grid-template-columns: 12rem 1rem calc(100% - 15rem);
+    grid-template-columns: calc(100% - 15rem) 1rem 12rem;
 }
 
 .search-toolbox {

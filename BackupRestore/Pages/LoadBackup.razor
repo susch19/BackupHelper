@@ -2,7 +2,6 @@
 @using Backup.Shared
 @using BackupRestore.Data;
 @using System.Text;
-@using Radzen.Blazor;
 @using System.Text.RegularExpressions;
 @using static System.Net.WebRequestMethods;
 @inject RecoveryService RecoveryService
@@ -14,16 +13,17 @@
 @if (fileInfos.Count < 1)
 {
     <div class="metadata-select">
-        <button @onclick="SelectFilePath">Select Metadata File</button>
+        <InputText placeholder="Metadata File Path" @bind-Value="filePath"></InputText>
         <div />
-        <InputText @bind-Value="filePath"></InputText>
-        @*<InputFile OnChange="@OnInputFileChange" accept=".metadata.zip.aes" />*@
+        <RadzenButton Click="SelectFilePath">Select File</RadzenButton>
     </div>
-
-    <div class="row">
+    <br />
+    <div class="metadata-select">
         <InputText @bind-Value="Password" type="password" placeholder="Password" />
+
+        <div />
+        <RadzenButton type="submit" Click="LoadData">Load</RadzenButton>
     </div>
-    <button class="row" type="submit" @onclick="LoadData">Load</button>
 }
 else if (storeView)
 {
@@ -35,98 +35,118 @@ else if (storeView)
             <InputText @bind-Value="dirPath" />
         </div>
         <div>
-            <button @onclick="SelectDirPath">Select</button>
+            <RadzenButton Click="SelectDirPath">Select</RadzenButton>
         </div>
         <div>
-            <button @onclick="SaveBackup" disabled="@(string.IsNullOrWhiteSpace(dirPath) ? true : false)">Restore</button>
+            <RadzenButton Click="SaveBackup" disabled="@(string.IsNullOrWhiteSpace(dirPath) ? true : false)">Restore</RadzenButton>
         </div>
         <div>
-            <button @onclick="Reset">Start over</button>
+            <RadzenButton Click="Reset">Start over</RadzenButton>
         </div>
 
     </div>
-    <Virtualize Context="context" ItemsProvider="@GetNodes" @ref="virtualizeComponent">
-        <ShowItem Item=@context @key="context.node.FullPath">
-            <div style="display: grid; grid-template-columns: 1em max-content 1em max-content; margin-left: @(context.level * 20)px">
-                <svg viewBox="0 0 16 16" style="margin-top: 0.3rem;height: 1em; vertical-align: middle; transform: rotate(@(context.node.IsExpanded ? 90 : 0)deg); @(context.node.Children.Any() ? "cursor: pointer" : "")" @onclick="() => ChangeNode(context.node)" @onclick:stopPropagation>
-                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "white" : "transparent")" fill="transparent" stroke-width="2" />
-                </svg>
-                <RadzenLabel Text="@context.node.Name" Style="margin-left: 8px; vertical-align: middle;" />
-                <div />
-                <div style="visibility:@(context.node.HistoryFileSelected == uint.MaxValue ? "hidden" : "visible")">
-                    @if (context.node.HistoryFileSelected != uint.MaxValue)
-                    {
-                        @fileNameIndex.Index[context.node.HistoryFileSelected].CreateDate.ToShortDateString()
-                    }
-                </div>
-            </div>
-        </ShowItem>
-    </Virtualize>
+    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="false" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterDate="@filterDate" Password="@Password" />
 }
 else
 {
     <div class="toolbox-grid">
-        <RadzenButton Click="()=>{ storeView = true; }" Text="Save" />
+        <RadzenButton Click="()=>{ ChangeToStoreView(); }" Text="Continue to Save" />
         <div></div>
-        <RadzenButton Click="()=>{ fileInfos.Clear(); }" Text="Load" />
+        <RadzenButton Click="()=>{ fileInfos.Clear(); }" Text="Start over" />
     </div>
     <br />
-    <div class="search-toolbox">
-        <RadzenTextBox @bind-Value="filter" />
-        <div />
-        <RadzenCheckBox @bind-Value=fullTextSearch TValue="bool" @onclick:stopPropagation />
-        <RadzenLabel Text="FullTextSearch" Style="margin-left: 8px; vertical-align: middle;" />
-        <div />
-        <RadzenButton Click="()=>{ Search(); }" Text="Search" />
-        <div />
-        <RadzenButton Click="()=>{ ClearFilter();  }" Text="Clear" />
-    </div>
+    <RadzenCard>
+        <div class="search-toolbox">
+            @*<RadzenTextBox @bind-Value="@filter" @bind:event="oninput" @onkeypress="AutoSearch" />*@
+            <input placeholder="Search" @bind="filter" @bind:event="oninput" @onkeydown=AutoSearch />
+            <div />
+            <RadzenCheckBox @bind-Value=fullTextSearch TValue="bool" @onclick:stopPropagation />
+            <RadzenLabel Text="FullTextSearch" Style="margin-left: 8px; vertical-align: middle;" />
+            <div />
+            <RadzenButton Click="()=>{ Search(); }" Text="Search" />
+            <div />
+            <RadzenButton Click="()=>{ ClearFilter();  }" Text="Clear" />
+        </div>
+        <div style="margin-top: 16px">
+            <RadzenLabel Text="Date minimum:" TextStyle="TextStyle.Subtitle2" style="width: 7.2rem" />
+            <RadzenDatePicker @bind-Value="filterMinDate" DateFormat="d" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
+        </div>
+        <div style="margin-top: 16px">
+            <RadzenLabel Text="Date maximum:" TextStyle="TextStyle.Subtitle2" style="width: 7.2rem" />
+            <RadzenDatePicker @bind-Value="filterDate" DateFormat="d" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
+        </div>
+    </RadzenCard>
     <br />
-
-    <Virtualize Context="context" ItemsProvider="@GetNodes" @ref="virtualizeComponent">
-        <ShowItem Item=@context @key="context.node.FullPath">
-            <div style="display: grid; grid-template-columns: 1em 1em max-content 1em max-content; margin-left: @(context.level * 20)px">
-                <svg viewBox="0 0 16 16" style="margin-top: 0.3rem;height: 1em; vertical-align: middle; transform: rotate(@(context.node.IsExpanded ? 90 : 0)deg); @(context.node.Children.Any() ? "cursor: pointer" : "")" @onclick="() => ChangeNode(context.node)" @onclick:stopPropagation>
-                    <path d="M 4 2 l 7 6 l -7 6" stroke="@(context.node.Children.Any() ? "white" : "transparent")" fill="transparent" stroke-width="2" />
-                </svg>
-                <RadzenCheckBox @bind-Value=@context.node.IsSelected TValue="bool" @onclick:stopPropagation />
-                <RadzenLabel Text="@context.node.Name" Style="margin-left: 8px; vertical-align: middle;" />
-                <div />
-                <div style="visibility:@(context.node.BackupFileIndeces.Count == 0 ? "hidden" : "visible")">
-                    <InputSelect @bind-Value="context.node.HistoryFileSelected">
-                        @foreach (var item in context.node.BackupFileIndeces)
-                        {
-                            <option value="@item">@fileNameIndex.Index[item].CreateDate.ToShortDateString()</option>
-                        }
-                    </InputSelect>
-                </div>
-            </div>
-
-        </ShowItem>
-    </Virtualize>
+    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="true" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterDate="@filterDate" Password="@Password" />
 }
 
 @code {
 
     private string Password { get; set; }
+    bool mouseOverInput = false;
 
     private List<FileDisplayInfo> fileInfos = new();
     private List<(FileDisplayInfo node, int level)> flatFileInfos = new();
     private BackupFileNameIndex fileNameIndex = new();
-    private Virtualize<(BackupRestore.Data.FileDisplayInfo, int)>? virtualizeComponent;
+    private VirtualTreeView? virtualTree;
 
     private string dirPath = "";
     private string filePath = "";
 
+    private DateTime filterDate = DateTime.Now;
+    private DateTime filterMinDate = DateTime.Now;
     private string filter = "";
     private bool fullTextSearch = false;
     private Regex? filterRegex = null;
     private bool storeView = false;
     (BackupRestore.Data.FileDisplayInfo node, int level)[]? arr;
 
+    void OnlyBackupDates(DateRenderEventArgs args)
+    {
+        args.Disabled = args.Disabled || !fileNameIndex.Index.Any(x => x.Value.CreateDate.Date == args.Date);
+    }
+
+    private void AutoSearch(KeyboardEventArgs e)
+    {
+        if (e.Code == "Enter" || e.Code == "NumpadEnter")
+            Search();
+    }
+
+    private void ChangeToStoreView()
+    {
+        storeView = true;
+        var minIndex = fileNameIndex.Index.MinBy(x => x.Value.CreateDate.Date >= filterMinDate).Key;
+        var maxIndex = fileNameIndex.Index.MaxBy(x => x.Value.CreateDate.Date <= filterDate).Key;
+        foreach (var item in flatFileInfos)
+        {
+            if (item.node.IsSelected && (item.node.HistoryFileSelected > maxIndex || item.node.HistoryFileSelected < minIndex))
+            {
+                foreach (var index in item.node.BackupFileIndeces)
+                {
+                    if ((index <= maxIndex 
+                            && (item.node.HistoryFileSelected == uint.MaxValue 
+                                || index > item.node.HistoryFileSelected))
+                        || (index >= minIndex 
+                            && (item.node.HistoryFileSelected == uint.MaxValue 
+                                || index < item.node.HistoryFileSelected)))
+                    {
+                        item.node.HistoryFileSelected = index;
+
+                    }
+                }
+                if (item.node.Children.Count == 0 && item.node.HistoryFileSelected == uint.MaxValue)
+                    item.node.IsSelected = false;
+            }
+        }
+        ChangeTreeView();
+    }
+
     private void Search()
     {
-        filterRegex = new Regex(filter);
+        if (string.IsNullOrEmpty(filter))
+            ClearFilter();
+        else
+            filterRegex = new Regex(filter);
         ChangeTreeView();
     }
     private void ClearFilter()
@@ -162,23 +182,30 @@ else
         storeView = false;
         (fileNameIndex, fileInfos) = RecoveryService.GetBackupInformation(filePath, Password);
         GenerateFlatList();
+        filterDate = fileNameIndex.Index.MaxBy(x => x.Value.CreateDate).Value.CreateDate.Date;
+        filterMinDate = fileNameIndex.Index.MinBy(x => x.Value.CreateDate).Value.CreateDate.Date;
         await ChangeTreeView();
     }
 
     private async Task ChangeTreeView()
     {
+        IEnumerable<(FileDisplayInfo node, int level)> filterEnumerable;
         if (filterRegex is null)
-            arr = flatFileInfos
-            .Where(x =>
-                (x.node.Parent is null || x.node.Parent.IsExpanded)
-                && (!storeView
-                    || (x.node.IsSelected || x.node.AnyChildSelected)))
-            .ToArray();
+            filterEnumerable = flatFileInfos
+                .Where(x =>
+                    (x.node.Parent is null || x.node.Parent.IsExpanded)
+                    && (!storeView
+                        || (x.node.IsSelected || x.node.AnyChildSelected)));
         else
-            arr = flatFileInfos
-                .Where(x => !storeView && FileDisplayInfo.Matches(x.node, filterRegex, fullTextSearch))
-                .ToArray();
-        var virtComp = virtualizeComponent;
+            filterEnumerable = flatFileInfos
+                .Where(x => !storeView && FileDisplayInfo.Matches(x.node, filterRegex, fullTextSearch));
+
+        filterEnumerable = filterEnumerable.Where(x => FileDisplayInfo.Matches(x.node, fileNameIndex, filterMinDate.Date, filterDate.Date));
+
+
+        arr = filterEnumerable.ToArray();
+
+        var virtComp = virtualTree;
         if (virtComp is not null)
             await virtComp?.RefreshDataAsync();
     }
@@ -188,10 +215,6 @@ else
         var localArr = arr;
         if (localArr is null)
             localArr = Array.Empty<(BackupRestore.Data.FileDisplayInfo node, int level)>();
-
-        //arr = flatFileInfos.Where(x => MemoryExtensions.Contains(x.node.Name, filter, StringComparison.OrdinalIgnoreCase)
-        //|| (MemoryExtensions.Contains(x.node.FullPath, filter, StringComparison.OrdinalIgnoreCase)
-        //    && (x.node.Parent is null || x.node.Parent.IsExpanded))).ToArray();
 
         var items = localArr.Skip(request.StartIndex).Take(request.Count);
 
@@ -223,16 +246,16 @@ else
             }
         }
     }
-
-    private async Task SaveBackup()
-    {
-        await RecoveryService.RestoreFiles(dirPath, Password, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
-
-    }
-    private async Task ChangeNode(FileDisplayInfo node)
+    private void ChangeNode(FileDisplayInfo node)
     {
         node.IsExpanded = !node.IsExpanded;
-        await ChangeTreeView();
+        ChangeTreeView();
+    }
+
+    private void SaveBackup()
+    {
+        RecoveryService.RestoreFiles(dirPath, Password, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
+
     }
 
 }
