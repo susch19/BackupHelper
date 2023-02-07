@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7</TargetFramework>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageTags>C# gitignore</PackageTags>
+        <PackageProjectUrl>https://github.com/goelhardik/ignore</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/goelhardik/ignore.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+</Project>
