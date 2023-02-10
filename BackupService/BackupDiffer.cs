@@ -11,8 +11,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 using CompressionMode = System.IO.Compression.CompressionMode;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
@@ -26,8 +24,7 @@ public class BackupDiffer
         var backupIgnorePath = new FileInfo(Path.Combine(sourcePath, ".backupignore"));
         if (backupIgnorePath.Exists)
         {
-            ignore.Add(File.ReadAllLines(backupIgnorePath.FullName)
-                .Where(x => !string.IsNullOrWhiteSpace(x) && x[0] != '#'));
+            ignore.Add(File.ReadAllLines(backupIgnorePath.FullName).Where(x => !string.IsNullOrWhiteSpace(x)));
         }
 
         var dirName = backupIgnorePath.DirectoryName!;
@@ -37,6 +34,7 @@ public class BackupDiffer
                 .GetFiles(sourcePath, "*", SearchOption.AllDirectories)
                 .Where(x => !ignore.IsIgnored(x[(dirName.Length + 1)..]))
                 .Select(x => new FileInfo(x))
+                .Where(x=> !ignore.IsIgnored(x))
                 .ToArray();
 
         if (File.Exists(backupIndex))
