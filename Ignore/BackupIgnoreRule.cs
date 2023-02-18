@@ -42,7 +42,7 @@ namespace Ignore
         public bool IsMatch<T>(T value)
         {
             if (value is not FileInfo fi)
-                return !Negate;
+                return Negate;
 
             return (newerThan && fi.LastWriteTimeUtc.Add(span) >= DateTime.UtcNow) 
                 || (!newerThan && fi.LastWriteTimeUtc.Add(span) <= DateTime.UtcNow);
@@ -86,7 +86,7 @@ namespace Ignore
         public bool IsMatch<T>(T value)
         {
             if (value is not FileInfo fi)
-                return !Negate;
+                return Negate;
             return (smaller && fi.Length <= Size) || (!smaller && fi.Length >= Size);
 
         }
@@ -195,7 +195,7 @@ namespace Ignore
         public bool IsMatch<T>(T input)
         {
             if (input is not string inp)
-                return !Negate;
+                return Negate;
             return (ParsedRegex != null && ParsedRegex.IsMatch(inp));
         }
 

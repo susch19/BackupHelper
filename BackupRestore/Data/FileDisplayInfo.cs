@@ -1,5 +1,6 @@
 using Backup.Shared;
 
+using System;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -72,9 +73,10 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
 
     public static FileDisplayInfo Deserialize(BinaryReader br, FileDisplayInfo? parent)
     {
+        var version = br.ReadInt32();
         var name = br.ReadString();
 
-        var fn = new FileDisplayInfo(name, parent);
+        var fn = new FileDisplayInfo(name, parent) { Version = version };
         var indices = br.ReadInt32();
         for (int i = 0; i < indices; i++)
         {

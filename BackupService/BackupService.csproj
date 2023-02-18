@@ -8,10 +8,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="CronExpressionDescriptor" Version="2.19.0" />
+		<PackageReference Include="Cronos" Version="0.7.1" />
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.0" />
-		<PackageReference Include="NonSucking.Framework.Serialization" Version="0.1.0.81-alpha" />
+		<PackageReference Include="NonSucking.Framework.Serialization" Version="0.1.0.83-alpha" />
 		<PackageReference Include="Squid-Box.SevenZipSharp" Version="1.5.0.366" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Using Include="NonSucking.Framework.Serialization"/>
 	</ItemGroup>
 
 	<ItemGroup>

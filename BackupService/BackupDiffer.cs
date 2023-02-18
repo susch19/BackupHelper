@@ -1,14 +1,7 @@
-﻿using Backup.Shared;
-
-using Ignore;
+﻿using Ignore;
 
 using SevenZip;
-
-using System;
-using System.Collections.Generic;
 using System.IO.Compression;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -18,7 +11,7 @@ using CompressionLevel = System.IO.Compression.CompressionLevel;
 namespace BackupService;
 public class BackupDiffer
 {
-    public Dictionary<string, BackupFileChange>? GetChangedFiles(string sourcePath, bool fastExit, BackupType backupType)
+    public Dictionary<string, BackupFileChange>? GetChangedFiles(string sourcePath, bool fastExit, bool recursive, BackupType backupType)
     {
         var ignore = new BackupIgnore();
         var backupIgnorePath = new FileInfo(Path.Combine(sourcePath, ".backupignore"));
@@ -31,7 +24,7 @@ public class BackupDiffer
         string backupIndex = "backupIndex.aes.zip";
         BackupFileChangeIndex index;
         var allFiles = Directory
-                .GetFiles(sourcePath, "*", SearchOption.AllDirectories)
+                .GetFiles(sourcePath, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
                 .Where(x => !ignore.IsIgnored(x[(dirName.Length + 1)..]))
                 .Select(x => new FileInfo(x))
                 .Where(x=> !ignore.IsIgnored(x))

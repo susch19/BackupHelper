@@ -21,37 +21,15 @@ namespace BackupFileIndexer;
 
 public partial class BackupIndexer
 {
-    const byte CurrentSupportedHeaderVersion = 2;
+    const byte CurrentSupportedHeaderVersion = 3;
     bool credManagerSave = true;
-
-    private byte[] GetCredentialsFor(string name, string defaultPW)
-    {
-
-        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            var target = "backuprestore:" + name;
-            var cred = CredentialManager.GetCredentials(target);
-            if (cred is null)
-            {
-                cred = CredentialManager.PromptForCredentials(target, ref credManagerSave, $"Please enter the ecnryption passwort for the backup of \"{name}\"", "Backup Password", name);
-            }
-            if (cred is not null)
-            {
-                if (credManagerSave)
-                    CredentialManager.SaveCredentials(target, cred);
-                return Encoding.UTF8.GetBytes(cred.Password);
-            }
-        }
-        return Encoding.UTF8.GetBytes(defaultPW);
-    }
 
     public void CreateMetaDataFiles(BackupConfig backupConfig)
     {
         if (backupConfig is null)
             throw new ArgumentNullException(nameof(backupConfig));
 
-        byte[] globalIndexPW = GetCredentialsFor(backupConfig.GlobalIndex.Name, backupConfig.GlobalIndex.Password);
-
+        byte[] globalIndexPW = CredentialHelper.GetCredentialsFor(backupConfig.GlobalIndex.Name, backupConfig.GlobalIndex.Password, ref credManagerSave);
 
         BackupFileNameIndex globalIndex = new();
         var globalNodes = new List<FileNode>();
@@ -70,8 +48,8 @@ public partial class BackupIndexer
 
         foreach ((string backupName, string backupPath, string password) in backupConfig.BackupPaths)
         {
-            byte[] pw = GetCredentialsFor(backupName, password);
-            
+            byte[] pw = CredentialHelper.GetCredentialsFor(backupName, password, ref credManagerSave);
+            var clearPassword = Encoding.UTF8.GetString(pw);
             IGrouping<string?, FileInfo>[] groupFiles =
                 backupConfig
                 .BackupPaths
@@ -90,7 +68,7 @@ public partial class BackupIndexer
                 for (int o = 0; o < files.Length; o++)
                 {
                     FileInfo? file = files[o];
-                    using SevenZipExtractor extractor = new(file.FullName, password);
+                    using SevenZipExtractor extractor = new(file.FullName, clearPassword);
 
                     string metaDataFileName = GetMetaDataFileName(file);
 

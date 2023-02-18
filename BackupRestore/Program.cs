@@ -6,6 +6,10 @@ using Radzen;
 
 using SevenZip;
 
+using System.IO.Compression;
+using System.IO;
+using System.Security.Cryptography;
+
 namespace BackupRestore;
 
 public class Programm
@@ -13,7 +17,12 @@ public class Programm
     [STAThread]
     public static void Main(string[] args)
     {
-        SevenZipBase.SetLibraryPath("C:\\Program Files\\7-Zip\\7z.dll");
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json")
+        .Build();
+
+
+        SevenZipBase.SetLibraryPath(configuration.GetValue<string>("SevenZipDllPath"));
         var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
 
         // Add services to the container.

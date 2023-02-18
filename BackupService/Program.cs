@@ -1,24 +1,19 @@
 using BackupService;
+using BackupService.Scheduling;
 
-using System.Security.Cryptography;
 using SevenZip;
 
-IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices(services =>
-    {
-        services.AddHostedService<Worker>();
-    })
-    .Build();
+var builder = Host.CreateApplicationBuilder(args);
 
-SevenZipBase.SetLibraryPath("C:\\Program Files\\7-Zip\\7z.dll");
-var bd = new BackupDiffer();
-//var source = @"G:\Backups\TestBackup\Source";
-//var target = "G:\\Backups\\TestBackup\\Result";
-//var backupType = BackupType.Incremental;
-//var changes = bd.GetChangedFiles(source, true, backupType);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-//if (changes is null)
-//    return;
-//bd.BackupDetectedChanges(changes, source, target, "123", backupType);
-//bd.StoreNewChangesInIndex(changes);
+builder.Services
+    .AddSingleton<BackupsConfig>()
+    .AddSingleton<BackupDiffer>()
+    .AddHostedService<ScheduleManager>()
+    .Configure<BackupsConfig>(builder.Configuration.GetSection(BackupsConfig.ConfigName));
+
+var host = builder.Build();
+
 host.Run();
+
