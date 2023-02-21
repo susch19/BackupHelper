@@ -30,6 +30,7 @@ public class Programm
         builder.RootComponents.Add<App>("app");
         builder.Services.AddScoped<DialogService>();
         builder.Services.AddScoped<NotificationService>();
+        builder.Services.AddScoped<ConfigService>();
         builder.Services.AddScoped<TooltipService>();
         builder.Services.AddScoped<ContextMenuService>();
 

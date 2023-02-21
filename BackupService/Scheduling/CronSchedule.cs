@@ -1,4 +1,6 @@
-﻿using Cronos;
+﻿using Backup.Shared;
+
+using Cronos;
 
 namespace BackupService.Scheduling;
 
@@ -7,8 +9,24 @@ public partial class CronSchedule : Schedule
 {
     public string Expression { get; set; }
 
+    [NoosonIgnore]
+    public CronExpression CronExpression => CronExpression.Parse(Expression);
+
     public override DateTime? NextOccurence(DateTime dt)
     {
-        return CronExpression.Parse(Expression).GetNextOccurrence(dt);
+        try
+        {
+            return CronExpression.GetNextOccurrence(dt);
+
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    protected override Schedule Clone()
+    {
+        return new CronSchedule() { BackupType = BackupType, LastRun = LastRun, Expression = Expression };
     }
 }

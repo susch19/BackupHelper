@@ -11,7 +11,7 @@ public class BackupsConfig
 {
     public const string ConfigName = "Backup";
 
-    public ConfigPath[] ConfigPaths { get; set; } = Array.Empty<ConfigPath>();
+    public List<ConfigPath> ConfigPaths { get; set; } = new();
     public string SevenZipPath { get; set; } = "";
     public string DefaultPassword { get; set; } = "";
     public string DefaultCredentialName { get; set; } = "";

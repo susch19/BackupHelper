@@ -29,7 +29,7 @@ public partial class BackupIndexer
         if (backupConfig is null)
             throw new ArgumentNullException(nameof(backupConfig));
 
-        byte[] globalIndexPW = CredentialHelper.GetCredentialsFor(backupConfig.GlobalIndex.Name, backupConfig.GlobalIndex.Password, ref credManagerSave);
+        byte[] globalIndexPW = CredentialHelper.GetCredentialsFor(backupConfig.GlobalIndex.Name, backupConfig.GlobalIndex.Password, "Backup Password", ref credManagerSave);
 
         BackupFileNameIndex globalIndex = new();
         var globalNodes = new List<FileNode>();
@@ -48,7 +48,7 @@ public partial class BackupIndexer
 
         foreach ((string backupName, string backupPath, string password) in backupConfig.BackupPaths)
         {
-            byte[] pw = CredentialHelper.GetCredentialsFor(backupName, password, ref credManagerSave);
+            byte[] pw = CredentialHelper.GetCredentialsFor(backupName, password, "Backup Password", ref credManagerSave);
             var clearPassword = Encoding.UTF8.GetString(pw);
             IGrouping<string?, FileInfo>[] groupFiles =
                 backupConfig

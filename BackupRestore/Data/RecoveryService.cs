@@ -26,6 +26,18 @@ public class RecoveryService
 
     }
 
+    public string FileSave(string filter)
+    {
+        var file = NativeFileDialogSharp.Dialog.FileSave(filter);
+        if (file.IsOk)
+        {
+            var end = "." + filter;
+            if (file.Path.EndsWith(end, StringComparison.OrdinalIgnoreCase))
+                return file.Path;
+            return file.Path + end;
+        }
+        return "";
+    }
     public string GetFilePath(string filter)
     {
         var file = NativeFileDialogSharp.Dialog.FileOpen(filter);

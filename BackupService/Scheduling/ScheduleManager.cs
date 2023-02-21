@@ -34,7 +34,7 @@ public class ScheduleManager : BackgroundService
     public List<NextSchedule> WhatsNext(DateTime from, DateTime to)
     {
         nextSchedules.Clear();
-        CheckBackupConfigs();
+        CheckBackupConfigs(config, backupConfigs, ref saveCredential);
         if (backupConfigs.Count == 0)
             return nextSchedules;
 
@@ -89,8 +89,9 @@ public class ScheduleManager : BackgroundService
                 var runAt = nextSchedule.RunAt - lastRun;
                 if (runAt > TimeSpan.FromMilliseconds(100))
                     await Task.Delay(runAt, stoppingToken);
+                nextSchedule.Schedule.LastRun = DateTime.UtcNow;
                 foreach (var item in nextSchedule.Config.ProgrammEvents
-                    .Where(x => x.Enabled 
+                    .Where(x => x.Enabled
                         && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.Before) > 0))
                 {
                     //item Execute
@@ -114,7 +115,7 @@ public class ScheduleManager : BackgroundService
 
 
                 foreach (var item in nextSchedule.Config.ProgrammEvents
-                    .Where(x => x.Enabled 
+                    .Where(x => x.Enabled
                         && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.After) > 0))
                 {
                     //item Execute
@@ -124,24 +125,33 @@ public class ScheduleManager : BackgroundService
         }
     }
 
-    private void CheckBackupConfigs()
+    public static void CheckBackupConfigs(BackupsConfig config, List<BackupTaskConfig> backupConfigs, ref bool saveCredential)
     {
         var enabledConfigs = backupConfigs.Where(x => x.Enabled).ToArray();
 
-        if (enabledConfigs.Length == config.ConfigPaths.Length
+        if (enabledConfigs.Length == config.ConfigPaths.Count
             && !enabledConfigs.Any(x => config.ConfigPaths.All(y => !x.Path.Equals(y))))
             return;
 
         foreach (var path in config.ConfigPaths)
         {
-            var credentialName = string.IsNullOrWhiteSpace(path.CredentialName) ? config.DefaultCredentialName : path.CredentialName;
-            var password = string.IsNullOrWhiteSpace(path.Password) ? config.DefaultPassword : path.Password;
+            try
+            {
+                var credentialName = string.IsNullOrWhiteSpace(path.CredentialName) ? config.DefaultCredentialName : path.CredentialName;
+                var password = string.IsNullOrWhiteSpace(path.Password) ? config.DefaultPassword : path.Password;
 
-            var pw = CredentialHelper.GetCredentialsFor(credentialName, password, ref saveCredential);
+                var pw = CredentialHelper.GetCredentialsFor(credentialName, password, "Config Password", ref saveCredential);
 
-            using var br = BackupEncryptionHelper.OpenEncryptedReaderFor(File.OpenRead(path.Path), pw);
-            var taskConfig = BackupTaskConfig.Deserialize(br);
-            backupConfigs.Add(taskConfig);
+                if (File.Exists(path.Path))
+                {
+                    using var br = BackupEncryptionHelper.OpenEncryptedReaderFor(File.OpenRead(path.Path), pw);
+                    var taskConfig = BackupTaskConfig.Deserialize(br);
+                    backupConfigs.Add(taskConfig);
+                }
+            }
+            catch (Exception)
+            {
+            }
         }
 
     }

@@ -13,7 +13,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3rdParty", "3rdParty", "{DF
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdysTech.CredentialManager", "AdysTech.CredentialManager\AdysTech.CredentialManager.csproj", "{69E4DF70-6BC7-4242-813D-E3078B7D9D5B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackupService", "BackupService\BackupService.csproj", "{CEA5550D-73CB-4479-8B68-4218142C48A0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BackupService", "BackupService\BackupService.csproj", "{CEA5550D-73CB-4479-8B68-4218142C48A0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ignore", "Ignore\Ignore.csproj", "{5D9033A6-FA53-4BB5-90EA-1037B5103062}"
 EndProject

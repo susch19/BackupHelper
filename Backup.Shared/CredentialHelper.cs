@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Backup.Shared;
 public static class CredentialHelper
 {
-    public static byte[] GetCredentialsFor(string name, string defaultPW, ref bool credManagerSave)
+    public static byte[] GetCredentialsFor(string name, string defaultPW, string caption, ref bool credManagerSave)
     {
 
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -19,7 +19,7 @@ public static class CredentialHelper
             var cred = CredentialManager.GetCredentials(target);
             if (cred is null)
             {
-                cred = CredentialManager.PromptForCredentials(target, ref credManagerSave, $"Please enter the ecnryption passwort for the backup of \"{name}\"", "Backup Password", name);
+                cred = CredentialManager.PromptForCredentials(target, ref credManagerSave, $"Please enter the ecnryption passwort for \"{name}\"", caption, name);
             }
             if (cred is not null)
             {

@@ -1,4 +1,6 @@
-﻿namespace BackupService.Scheduling;
+﻿using Backup.Shared;
+
+namespace BackupService.Scheduling;
 
 [Nooson]
 public partial class IntervalSchedule : Schedule
@@ -7,6 +9,13 @@ public partial class IntervalSchedule : Schedule
 
     public override DateTime? NextOccurence(DateTime dt)
     {
-        return dt.AddSeconds(SecondsAfter);
+        var nextRun = LastRun.AddSeconds(SecondsAfter);
+        if (nextRun < dt)
+            return dt;
+        return nextRun;
+    }
+    protected override Schedule Clone()
+    {
+        return new IntervalSchedule() { BackupType = BackupType, LastRun = LastRun, SecondsAfter = SecondsAfter };
     }
 }
