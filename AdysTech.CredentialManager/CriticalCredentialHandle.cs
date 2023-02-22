@@ -1,4 +1,5 @@
 ﻿using Microsoft.Win32.SafeHandles;
+
 using System;
 using System.Runtime.InteropServices;
 
@@ -9,25 +10,25 @@ namespace AdysTech.CredentialManager
         // Set the handle.
         internal CriticalCredentialHandle(IntPtr preexistingHandle)
         {
-            SetHandle (preexistingHandle);
+            SetHandle(preexistingHandle);
         }
 
         internal Credential GetCredential()
         {
-            if ( !IsInvalid )
+            if (!IsInvalid)
             {
                 // Get the Credential from the mem location
-                NativeCode.NativeCredential ncred = (NativeCode.NativeCredential) Marshal.PtrToStructure (handle,
-                      typeof (NativeCode.NativeCredential));
+                NativeCode.NativeCredential ncred = (NativeCode.NativeCredential)Marshal.PtrToStructure(handle,
+                      typeof(NativeCode.NativeCredential));
 
                 // Create a managed Credential type and fill it with data from the native counterpart.
-                Credential cred = new Credential (ncred);
-   
+                Credential cred = new Credential(ncred);
+
                 return cred;
             }
             else
             {
-                throw new InvalidOperationException ("Invalid CriticalHandle!");
+                throw new InvalidOperationException("Invalid CriticalHandle!");
             }
         }
 
@@ -61,13 +62,13 @@ namespace AdysTech.CredentialManager
         override protected bool ReleaseHandle()
         {
             // If the handle was set, free it. Return success.
-            if ( !IsInvalid )
+            if (!IsInvalid)
             {
                 // NOTE: We should also ZERO out the memory allocated to the handle, before free'ing it
                 // so there are no traces of the sensitive data left in memory.
-                NativeCode.CredFree (handle);
+                NativeCode.CredFree(handle);
                 // Mark the handle as invalid for future users.
-                SetHandleAsInvalid ();
+                SetHandleAsInvalid();
                 return true;
             }
             // Return false. 

@@ -1,13 +1,12 @@
 namespace Ignore
 {
-    using Humanizer;
     using Humanizer.Bytes;
 
     using System;
     using System.Collections.Generic;
-    using System.Drawing;
     using System.IO;
     using System.Text.RegularExpressions;
+
     using TimeSpanParserUtil;
 
     public class BackupDateIgnoreRule : IIgnoreRule
@@ -44,7 +43,7 @@ namespace Ignore
             if (value is not FileInfo fi)
                 return Negate;
 
-            return (newerThan && fi.LastWriteTimeUtc.Add(span) >= DateTime.UtcNow) 
+            return (newerThan && fi.LastWriteTimeUtc.Add(span) >= DateTime.UtcNow)
                 || (!newerThan && fi.LastWriteTimeUtc.Add(span) <= DateTime.UtcNow);
 
         }

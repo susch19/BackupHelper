@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AdysTech.CredentialManager
 {
@@ -20,7 +16,7 @@ namespace AdysTech.CredentialManager
         string UserName { get; set; }
 
         NetworkCredential ToNetworkCredential();
-        bool SaveCredential(bool AllowBlankPassword=false);
+        bool SaveCredential(bool AllowBlankPassword = false);
 
         bool RemoveCredential();
     }

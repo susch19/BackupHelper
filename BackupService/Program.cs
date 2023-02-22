@@ -1,8 +1,6 @@
 using BackupService;
 using BackupService.Scheduling;
 
-using SevenZip;
-
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);

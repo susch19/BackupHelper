@@ -1,6 +1,4 @@
-﻿using Backup.Shared;
-
-using Cronos;
+﻿using Cronos;
 
 namespace BackupService.Scheduling;
 

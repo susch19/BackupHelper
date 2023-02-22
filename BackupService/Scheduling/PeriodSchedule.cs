@@ -1,6 +1,4 @@
-﻿using Backup.Shared;
-
-namespace BackupService.Scheduling;
+﻿namespace BackupService.Scheduling;
 
 [Nooson]
 public partial class MutliPeriodSchedule : Schedule
@@ -61,10 +59,10 @@ public partial class PeriodSchedule : Schedule
     [NoosonIgnore]
     public List<DaysOfWeek> SelectedDaysOfWeek { get; set; } = new();
     [NoosonIgnore]
-    public DateTime TimeOfDayDate 
-    { 
-        get => DateTime.Now.Date.AddTicks(TimeOfDay.Ticks); 
-        set => TimeOfDay = new(value.TimeOfDay.Ticks); 
+    public DateTime TimeOfDayDate
+    {
+        get => DateTime.Now.Date.AddTicks(TimeOfDay.Ticks);
+        set => TimeOfDay = new(value.TimeOfDay.Ticks);
     }
 
 

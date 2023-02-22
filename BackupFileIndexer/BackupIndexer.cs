@@ -1,21 +1,9 @@
-﻿using AdysTech.CredentialManager;
-
-using Backup.Shared;
+﻿using Backup.Shared;
 
 using SevenZip;
 
-using System;
-using System.Collections.Generic;
-using System.IO.Compression;
-using System.Linq;
-using System.Reflection.PortableExecutable;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace BackupFileIndexer;
 

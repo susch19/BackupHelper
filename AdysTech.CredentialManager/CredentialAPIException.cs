@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Runtime.InteropServices;
 
 namespace AdysTech.CredentialManager
@@ -10,12 +8,12 @@ namespace AdysTech.CredentialManager
     {
         public string APIName { get; internal set; }
 
-        public CredentialAPIException(string message,string api, int errorCode) : base(message, errorCode)
+        public CredentialAPIException(string message, string api, int errorCode) : base(message, errorCode)
         {
             APIName = api;
         }
 
-        public CredentialAPIException(string message, int errorCode): base(message, errorCode)
+        public CredentialAPIException(string message, int errorCode) : base(message, errorCode)
         {
 
         }
@@ -32,9 +30,9 @@ namespace AdysTech.CredentialManager
         {
         }
 
-        protected CredentialAPIException(System.Runtime.Serialization.SerializationInfo serializationInfo, System.Runtime.Serialization.StreamingContext streamingContext):base(serializationInfo,streamingContext)
+        protected CredentialAPIException(System.Runtime.Serialization.SerializationInfo serializationInfo, System.Runtime.Serialization.StreamingContext streamingContext) : base(serializationInfo, streamingContext)
         {
-            
+
         }
     }
 }

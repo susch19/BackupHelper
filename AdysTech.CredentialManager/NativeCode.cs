@@ -169,7 +169,7 @@ namespace AdysTech.CredentialManager
         internal static extern bool CredEnumerate([MarshalAs(UnmanagedType.LPWStr)] string target, UInt32 flags, out UInt32 count, out IntPtr credentialsPtr);
 
         [DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern bool CredRead([MarshalAs(UnmanagedType.LPWStr)]string target, uint type, int reservedFlag, out IntPtr CredentialPtr);
+        internal static extern bool CredRead([MarshalAs(UnmanagedType.LPWStr)] string target, uint type, int reservedFlag, out IntPtr CredentialPtr);
 
         [DllImport("Advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool CredWrite([In] ref NativeCredential userCredential, [In] UInt32 flags);

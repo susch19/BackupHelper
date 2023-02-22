@@ -14,16 +14,16 @@ public class CronValidator : ValidatorBase
         var value = component.GetValue();
         var valueAsString = value as string;
 
-		try
-		{
-			var expr = CronExpression.Parse(valueAsString);
-		}
-		catch (Exception ex)
-		{
+        try
+        {
+            var expr = CronExpression.Parse(valueAsString);
+        }
+        catch (Exception ex)
+        {
 
-			Text = ex.Message; 
-			return false;
-		}
-		return true;
+            Text = ex.Message;
+            return false;
+        }
+        return true;
     }
 }

@@ -1,10 +1,7 @@
 ﻿namespace Ignore
 {
     using System.Collections.Generic;
-    using System.Data;
-    using System.IO;
     using System.Linq;
-    using System.Text.RegularExpressions;
 
 
 
@@ -39,7 +36,7 @@
             if (backupIgnore.ParsedRegex is not null)
                 rules.Add(backupIgnore);
             if (BackupSizeIgnoreRule.AcceptsPattern.Any(x => rule.StartsWith(x)))
-                rules.Add(new BackupSizeIgnoreRule(rule));            
+                rules.Add(new BackupSizeIgnoreRule(rule));
             if (BackupDateIgnoreRule.AcceptsPattern.Any(x => rule.StartsWith(x)))
                 rules.Add(new BackupDateIgnoreRule(rule));
             return this;

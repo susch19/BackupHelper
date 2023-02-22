@@ -1,8 +1,5 @@
 using Backup.Shared;
 
-using System;
-using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BackupRestore.Data;
@@ -50,9 +47,9 @@ public class FileDisplayInfo : FileNode, IFileNode<FileDisplayInfo>
 
     public static bool Matches(FileDisplayInfo node, Regex filter, bool fulltext)
     {
-        if(!fulltext)
+        if (!fulltext)
             return filter.IsMatch(node.Name) || node.Children.Any(x => Matches(x, filter, fulltext));
-        var match =filter.Match(node.Name);
+        var match = filter.Match(node.Name);
         if (!match.Success || match.Index != 0 || match.Length != node.Name.Length)
         {
             if (node.Children.Any(x => Matches(x, filter, fulltext)))

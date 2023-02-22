@@ -4,21 +4,18 @@ using Microsoft.Extensions.Options;
 
 using SevenZip;
 
-using System.Transactions;
-
-using static System.Net.Mime.MediaTypeNames;
+using System.Text;
 
 namespace BackupService.Scheduling;
 
 public class ScheduleManager : BackgroundService
 {
-
     public record struct NextSchedule(ISchedule Schedule, DateTime RunAt, BackupTaskConfig Config);
 
     private readonly List<BackupTaskConfig> backupConfigs;
     private readonly BackupDiffer backupDiffer;
     private readonly ILogger<ScheduleManager> logger;
-    private readonly List<NextSchedule> nextSchedules = new List<NextSchedule>();
+    private readonly List<NextSchedule> nextSchedules = new();
     private readonly BackupsConfig config;
     private bool saveCredential = true;
 
@@ -37,6 +34,10 @@ public class ScheduleManager : BackgroundService
         CheckBackupConfigs(config, backupConfigs, ref saveCredential);
         if (backupConfigs.Count == 0)
             return nextSchedules;
+        from = from.ToUniversalTime();
+        var offset = from.ToLocalTime() - from;
+        from = from.Add(offset);
+        to = to.ToUniversalTime().Add(offset);
 
         foreach (var backupConfig in backupConfigs)
         {
@@ -49,7 +50,7 @@ public class ScheduleManager : BackgroundService
             foreach (var item in schedules)
             {
                 var nexter = item.NextOccurence(from);
-                if (nexter is not null && current >= nexter.Value && current <= to)
+                if (nexter is not null && current >= nexter.Value && nexter.Value <= to)
                 {
                     current = nexter.Value;
                     currentSched = item;
@@ -68,59 +69,84 @@ public class ScheduleManager : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         //var latestRun = backupConfig.Schedules.Max(x=>x.LastRun); //For executing missed runs
-        DateTime lastRun = DateTime.UtcNow;
+        DateTime lastRun = DateTime.UtcNow;// new DateTime(2023, 02, 22, 16, 19, 59, DateTimeKind.Utc);
 
         while (true)
         {
             if (stoppingToken.IsCancellationRequested)
                 stoppingToken.ThrowIfCancellationRequested();
 
-
-            var future = DateTime.UtcNow.AddSeconds(15);
+            var secondsToAdd = DateTime.UtcNow - lastRun;
+            var future = lastRun.Add(secondsToAdd);
             var next = WhatsNext(lastRun, future);
-            if (next.Count == 0)
+            try
             {
-                await Task.Delay(15000, stoppingToken);
-                continue;
-            }
-
-            foreach (var nextSchedule in next.OrderBy(x => x.RunAt))
-            {
-                var runAt = nextSchedule.RunAt - lastRun;
-                if (runAt > TimeSpan.FromMilliseconds(100))
-                    await Task.Delay(runAt, stoppingToken);
-                nextSchedule.Schedule.LastRun = DateTime.UtcNow;
-                foreach (var item in nextSchedule.Config.ProgrammEvents
-                    .Where(x => x.Enabled
-                        && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.Before) > 0))
+                if (next.Count == 0)
                 {
-                    //item Execute
+                    await Task.Delay(15000, stoppingToken);
+                    continue;
                 }
 
-                var backupType = nextSchedule.Schedule.BackupType;
-                foreach (var source in nextSchedule.Config.BackupSources)
+                foreach (var nextSchedule in next.OrderBy(x => x.RunAt))
                 {
-                    var changes = backupDiffer.GetChangedFiles(source, true, nextSchedule.Config.Recursive
-                        , backupType);
-                    if (changes is not null)
+                    var runAt = nextSchedule.RunAt - lastRun;
+                    if (runAt > TimeSpan.FromMilliseconds(100))
+                        await Task.Delay(runAt, stoppingToken);
+                    nextSchedule.Schedule.LastRun = DateTime.UtcNow;
+                    foreach (var item in nextSchedule.Config.ProgrammEvents
+                        .Where(x => x.Enabled
+                            && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.Before) > 0))
                     {
-                        foreach (var target in nextSchedule.Config.TargetSources)
-                        {
-                            backupDiffer.BackupDetectedChanges(changes, source, target, nextSchedule.Config.Password, backupType);
-                        }
+                        //item Execute
+                    }
 
-                        backupDiffer.StoreNewChangesInIndex(changes);
+                    var sevenZipPW = nextSchedule.Config.Password;
+                    if (nextSchedule.Config.CredentialManager)
+                        sevenZipPW = Encoding.UTF8.GetString(CredentialHelper.GetCredentialsFor(sevenZipPW, "", "Passwort for 7zip Backup", ref saveCredential));
+
+                    var backupType = nextSchedule.Schedule.BackupType;
+                    foreach (var source in nextSchedule.Config.BackupSources)
+                    {
+                        var changesWithBackupType = backupDiffer.GetChangedFiles(source, nextSchedule.Config.BackupIgnorePath, true, nextSchedule.Config.Recursive
+                            , backupType);
+                        if (changesWithBackupType is not null)
+                        {
+                            backupType = changesWithBackupType.Value.backupType;
+                            var changes = changesWithBackupType.Value.changes;
+                            var firstTarget = "";
+                            for (int i = 0; i < nextSchedule.Config.TargetSources.Count; i++)
+                            {
+                                var target = nextSchedule.Config.TargetSources[i];
+                                Directory.CreateDirectory(target);
+                                if (!string.IsNullOrWhiteSpace(firstTarget))
+                                {
+                                    File.Copy(firstTarget, BackupDiffer.GetBackupFileName(new DirectoryInfo(source), target, backupType));
+                                    continue;
+                                }
+
+                                firstTarget = backupDiffer.BackupDetectedChanges(changes, source, target, sevenZipPW, backupType);
+                            }
+
+                            backupDiffer.StoreNewChangesInIndex(changes);
+                        }
+                    }
+
+
+                    foreach (var item in nextSchedule.Config.ProgrammEvents
+                        .Where(x => x.Enabled
+                            && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.After) > 0))
+                    {
+                        //item Execute
                     }
                 }
-
-
-                foreach (var item in nextSchedule.Config.ProgrammEvents
-                    .Where(x => x.Enabled
-                        && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.After) > 0))
-                {
-                    //item Execute
-                }
-                lastRun = DateTime.UtcNow;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Something went wrong during the backup");
+            }
+            finally
+            {
+                lastRun = future;
             }
         }
     }
@@ -132,6 +158,8 @@ public class ScheduleManager : BackgroundService
         if (enabledConfigs.Length == config.ConfigPaths.Count
             && !enabledConfigs.Any(x => config.ConfigPaths.All(y => !x.Path.Equals(y))))
             return;
+
+        backupConfigs.Clear();
 
         foreach (var path in config.ConfigPaths)
         {
@@ -153,6 +181,5 @@ public class ScheduleManager : BackgroundService
             {
             }
         }
-
     }
 }

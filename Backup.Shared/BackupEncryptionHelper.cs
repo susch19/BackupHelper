@@ -1,16 +1,8 @@
 ﻿using NonSucking.Framework.Serialization;
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Backup.Shared;
 [Nooson]

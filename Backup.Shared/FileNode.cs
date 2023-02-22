@@ -36,14 +36,14 @@ public partial class FileNode : IFileNode<FileNode>, IFileNode
         }
         Parent = parent;
     }
-    
+
 
     public static FileNode Deserialize(BinaryReader br, FileNode? parent)
     {
         var version = br.ReadInt32();
         var name = br.ReadString();
 
-        var fn = new FileNode(name, parent) {Version = version };
+        var fn = new FileNode(name, parent) { Version = version };
         var indices = br.ReadInt32();
         for (int i = 0; i < indices; i++)
         {

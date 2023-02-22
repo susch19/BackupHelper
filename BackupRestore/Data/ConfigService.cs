@@ -42,7 +42,7 @@ public class ConfigService
             item.BackupIgnorePath = Path.Combine(Path.GetDirectoryName(item.Path), ".backupignore");
             item.Version = 1;
         }
-        foreach (var item in appConfig.BackupTaskConfigs.Where(x => x.Version ==1))
+        foreach (var item in appConfig.BackupTaskConfigs.Where(x => x.Version == 1))
         {
             item.Version = 2;
         }

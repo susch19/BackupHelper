@@ -1,6 +1,4 @@
-﻿using Backup.Shared;
-
-namespace BackupService.Scheduling;
+﻿namespace BackupService.Scheduling;
 
 [Nooson]
 public partial class IntervalSchedule : Schedule
