@@ -1,0 +1,17 @@
+﻿@inject TooltipService TooltipService
+
+<div>
+    <div class="info-circle" @ref="elementRef" @onmouseenter="@(args => ShowHelpTooltip(elementRef))">🛈</div>
+</div>
+
+@code {
+    [Parameter]
+    public RenderFragment<TooltipService> ChildContent { get; set; }
+
+    ElementReference elementRef;
+    TooltipOptions options = new TooltipOptions() { Duration = null, Position = TooltipPosition.Bottom };
+
+    void ShowHelpTooltip(ElementReference elementReference) =>
+        TooltipService.Open(elementReference, ChildContent, options);
+
+}

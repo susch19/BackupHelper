@@ -45,7 +45,8 @@ else if (storeView)
         </div>
 
     </div>
-    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="false" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterDate="@filterDate" Password="@Password" />
+    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="false" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterToDate="@filterDate" FilterFromDate="@filterMinDate" Password="@Password" />
+
 }
 else
 {
@@ -68,15 +69,15 @@ else
         </div>
         <div style="margin-top: 16px">
             <RadzenLabel Text="Date minimum:" TextStyle="TextStyle.Subtitle2" style="width: 7.2rem" />
-            <RadzenDatePicker @bind-Value="filterMinDate" DateFormat="d" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
+            <RadzenDatePicker @bind-Value="filterMinDate" DateFormat="dd.MM.yyyy HH:mm" ShowTime="true" ShowSeconds="false" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
         </div>
         <div style="margin-top: 16px">
             <RadzenLabel Text="Date maximum:" TextStyle="TextStyle.Subtitle2" style="width: 7.2rem" />
-            <RadzenDatePicker @bind-Value="filterDate" DateFormat="d" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
+            <RadzenDatePicker @bind-Value="filterDate" DateFormat="dd.MM.yyyy HH:mm" ShowTime="true" ShowSeconds="false" Change="()=>ChangeTreeView()" DateRender=OnlyBackupDates />
         </div>
     </RadzenCard>
     <br />
-    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="true" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterDate="@filterDate" Password="@Password" />
+    <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="true" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterToDate="@filterDate" FilterFromDate="@filterMinDate" Password="@Password" />
 }
 
 @code {
@@ -122,11 +123,11 @@ else
             {
                 foreach (var index in item.node.BackupFileIndeces)
                 {
-                    if ((index <= maxIndex 
-                            && (item.node.HistoryFileSelected == uint.MaxValue 
+                    if ((index <= maxIndex
+                            && (item.node.HistoryFileSelected == uint.MaxValue
                                 || index > item.node.HistoryFileSelected))
-                        || (index >= minIndex 
-                            && (item.node.HistoryFileSelected == uint.MaxValue 
+                        || (index >= minIndex
+                            && (item.node.HistoryFileSelected == uint.MaxValue
                                 || index < item.node.HistoryFileSelected)))
                     {
                         item.node.HistoryFileSelected = index;
@@ -162,13 +163,13 @@ else
         fileNameIndex = new();
     }
 
-    private void SelectFilePath()
+    private async Task SelectFilePath()
     {
-        filePath = RecoveryService.GetFilePath("metadata.zip.aes");
+        filePath = await RecoveryService.GetFilePath("metadata.zip.aes");
     }
-    private void SelectDirPath()
+    private async Task SelectDirPath()
     {
-        dirPath = RecoveryService.GetDirectoryPath();
+        dirPath = await RecoveryService.GetDirectoryPath();
     }
 
     private async Task LoadData()

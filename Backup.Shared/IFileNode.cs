@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace Backup.Shared;
+﻿namespace Backup.Shared;
 
 public interface IFileNode
 {

@@ -1,17 +1,35 @@
-﻿namespace Backup.Shared;
+﻿using NonSucking.Framework.Serialization;
 
-public class BackupFileInfo
+namespace Backup.Shared;
+
+public static class FileCreateSerializer
 {
+    public static void Serialize(BinaryWriter bw, DateTime dt) => bw.Write(dt.ToFileTimeUtc());
+    public static DateTime Deserialize(BinaryReader br) => DateTime.FromFileTimeUtc(br.ReadInt64());
+}
+
+[Nooson]
+public partial class BackupFileInfo
+{
+    [NoosonOrder(int.MinValue)]
+    public int Version { get; set; }
     public string FullPath { get; set; }
     public string Name { get; set; }
+    [NoosonCustom(DeserializeMethodName = nameof(Deserialize), SerializeMethodName = nameof(Serialize), DeserializeImplementationType = typeof(FileCreateSerializer), SerializeImplementationType = typeof(FileCreateSerializer))]
     public DateTime CreateDate { get; set; }
 }
-public class BackupFileNameIndex
+[Nooson]
+public partial class BackupFileNameIndex
 {
+    [NoosonIgnore]
     public uint GetNextIndex => nextIndex++;
+
+    [NoosonOrder(int.MinValue)]
+    public int Version { get; set; }
 
     public Dictionary<uint, BackupFileInfo> Index { get; set; } = new();
 
+    [NoosonInclude]
     private uint nextIndex = 0;
 
     public BackupFileInfo this[uint key]
@@ -20,31 +38,4 @@ public class BackupFileNameIndex
         set => Index[key] = value;
     }
 
-    public void Serialize(BinaryWriter bw)
-    {
-        bw.Write((uint)Index.Count);
-
-        foreach (var item in Index)
-        {
-            bw.Write(item.Key);
-            bw.Write(item.Value.FullPath);
-            bw.Write(item.Value.Name);
-            bw.Write(item.Value.CreateDate.ToFileTimeUtc());
-        }
-    }
-
-    public void Deserialize(BinaryReader br)
-    {
-        var count = br.ReadUInt32();
-        for (int i = 0; i < count; i++)
-        {
-            var index = br.ReadUInt32();
-            var fullPath = br.ReadString();
-            var name = br.ReadString();
-            var createDate = br.ReadInt64();
-            Index[index] = new BackupFileInfo { FullPath = fullPath, Name = name, CreateDate = DateTime.FromFileTimeUtc(createDate) };
-            if (index > nextIndex)
-                nextIndex = index;
-        }
-    }
 }

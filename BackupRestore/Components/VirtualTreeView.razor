@@ -21,13 +21,14 @@
             <RadzenLabel Text="@context.node.Name" Style="@radzenLabelStyle" @ondblclick="@((x) => { if (!hasChildren) PreviewFile(context.node); })" />
             <div />
 
-            <div style="visibility:@((Selectable && context.node.BackupFileIndeces.Count == 0) || (!Selectable && context.node.HistoryFileSelected == uint.MaxValue) ? "hidden" : "visible")">
+            <div style="visibility:@((Selectable && context.node.BackupFileIndeces.Count == 0) || (!Selectable && context.node.HistoryFileSelected == uint.MaxValue) || context.node.Children.Count > 0 ? "hidden" : "visible")">
                 <InputSelect @bind-Value="context.node.HistoryFileSelected">
                     @foreach (var item in context.node.BackupFileIndeces)
                     {
-                        @if (FileNameIndex.Index[item].CreateDate.Date <= FilterDate.Date)
+                        var filter = FileNameIndex.Index[item].CreateDate;
+                        @if (filter <= FilterToDate && filter >= FilterFromDate)
                         {
-                            <option value="@item">@FileNameIndex.Index[item].CreateDate.ToShortDateString()</option>
+                            <option value="@item">@FileNameIndex.Index[item].CreateDate.ToString("dd.MM.yyyy HH:mm")</option>
                         }
                     }
                 </InputSelect>
@@ -63,7 +64,9 @@
     public Action<FileDisplayInfo> ChangeNode { get; set; }
 
     [Parameter]
-    public DateTime FilterDate { get; set; } = DateTime.Now;
+    public DateTime FilterToDate { get; set; } = DateTime.Now;
+    [Parameter]
+    public DateTime FilterFromDate { get; set; } = DateTime.Now;
 
     private Virtualize<(BackupRestore.Data.FileDisplayInfo, int)>? virtualizeComponent;
 

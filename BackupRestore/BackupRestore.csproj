@@ -16,6 +16,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Backup.Shared\Backup.Shared.csproj" />
+		<ProjectReference Include="..\BackupService\BackupService.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

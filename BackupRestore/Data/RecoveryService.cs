@@ -2,12 +2,9 @@ using Backup.Shared;
 
 using Microsoft.AspNetCore.Mvc;
 
-using Radzen;
-
 using SevenZip;
 
 using System.Diagnostics;
-using System.Runtime;
 using System.Text;
 
 namespace BackupRestore.Data;
@@ -26,19 +23,31 @@ public class RecoveryService
 
     }
 
-    public string GetFilePath(string filter)
+    public Task<string> FileSave(string filter)
+    {
+        var file = NativeFileDialogSharp.Dialog.FileSave(filter);
+        if (file.IsOk)
+        {
+            var end = "." + filter;
+            if (file.Path.EndsWith(end, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult(file.Path);
+            return Task.FromResult(file.Path + end);
+        }
+        return Task.FromResult("");
+    }
+    public Task<string> GetFilePath(string filter)
     {
         var file = NativeFileDialogSharp.Dialog.FileOpen(filter);
         if (file.IsOk)
-            return file.Path;
-        return "";
+            return Task.FromResult(file.Path);
+        return Task.FromResult("");
     }
-    public string GetDirectoryPath()
+    public Task<string> GetDirectoryPath()
     {
         var dir = NativeFileDialogSharp.Dialog.FolderPicker();
         if (dir.IsOk)
-            return dir.Path;
-        return "";
+            return Task.FromResult(dir.Path);
+        return Task.FromResult("");
     }
     public void RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
     {

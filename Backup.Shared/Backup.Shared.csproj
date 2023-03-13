@@ -6,4 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+	<ItemGroup>
+		<ProjectReference Include="..\AdysTech.CredentialManager\AdysTech.CredentialManager.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="NonSucking.Framework.Serialization" Version="0.1.0.82-alpha" />
+	</ItemGroup>
 </Project>

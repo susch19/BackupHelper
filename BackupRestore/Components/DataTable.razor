@@ -1,0 +1,109 @@
+﻿@using Backup.Shared;
+
+@typeparam TObject where TObject : class, ICloneableGeneric<TObject>
+
+<div>
+    @foreach (var item in Inserts)
+    {
+        <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" Class="mt-2 mb-4" Text="@item.Title" Click="()=>InsertRow(item.ObjectCreator)" />
+
+    }
+</div>
+
+<RadzenDataGrid TItem="TObject" @ref="objectsGrid" PageSize="5" AllowAlternatingRows="false" AllowFiltering="false"
+                AllowPaging="true" AllowSorting="false" EditMode="DataGridEditMode.Single"
+                Data="@Objects" Sort="@Reset" Page="@Reset" Filter="@Reset">
+    <Columns>
+        @Columns
+        <RadzenDataGridColumn TItem="TObject" Context="command" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="154px">
+            <Template Context="command">
+                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@(args => EditRow(command))" @onclick:stopPropagation="true">
+                </RadzenButton>
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => DeleteRow(command))" @onclick:stopPropagation="true">
+                </RadzenButton>
+            </Template>
+            <EditTemplate Context="command">
+                <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@((args) => SaveRow(command))">
+                </RadzenButton>
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@((args) => CancelEdit(command))">
+                </RadzenButton>
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => DeleteRow(command))">
+                </RadzenButton>
+            </EditTemplate>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [Parameter]
+    public RenderFragment Columns { get; set; }
+
+    [Parameter]
+    public List<(string Title, Func<TObject> ObjectCreator)> Inserts { get; set; }
+
+    [Parameter]
+    public List<TObject>? Objects { get; set; }
+
+    [Parameter]
+    public Action<TObject>? FinishedEdit { get; set; }
+
+    [Parameter]
+    public Action<TObject>? CanceledEdit { get; set; }
+
+    RadzenDataGrid<TObject> objectsGrid;
+    TObject? copyObject = null;
+    TObject? originalObject = null;
+
+    void Reset()
+    {
+        copyObject = originalObject = null;
+    }
+
+    async Task EditRow(TObject command)
+    {
+        copyObject = command.Clone();
+        originalObject = command;
+        await objectsGrid.EditRow(command);
+    }
+
+    async Task SaveRow(TObject command)
+    {
+        if (originalObject is null)
+        {
+            Objects.Add(command);
+            await objectsGrid.UpdateRow(command);
+        }
+        else
+        {
+            await objectsGrid.UpdateRow(command);
+
+        }
+        FinishedEdit?.Invoke(command);
+        Reset();
+        await objectsGrid.Reload();
+    }
+
+    async Task CancelEdit(TObject command)
+    {
+        var index = Objects.IndexOf(command);
+        Objects.RemoveAt(index);
+        Objects.Insert(index, copyObject);
+        CanceledEdit?.Invoke(copyObject);
+        Reset();
+        await objectsGrid.Reload();
+    }
+
+    async Task DeleteRow(TObject command)
+    {
+        Objects.Remove(command);
+        Reset();
+        await objectsGrid.Reload();
+
+    }
+
+    async Task InsertRow(Func<TObject> creator)
+    {
+        copyObject = creator();
+        await objectsGrid.InsertRow(copyObject);
+    }
+}

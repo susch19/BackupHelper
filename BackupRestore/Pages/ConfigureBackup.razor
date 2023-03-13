@@ -1,0 +1,563 @@
+﻿@page "/configure"
+@using Backup.Shared
+@using BackupRestore.Data;
+@using System.Text;
+@using System.Text.RegularExpressions;
+@using BackupService.Scheduling;
+@using static System.Net.WebRequestMethods;
+@inject RecoveryService RecoveryService
+@inject ConfigService ConfigService
+
+
+<PageTitle>Configure</PageTitle>
+
+<h1>Configure</h1>
+<br />
+
+@if (backupConfig is null)
+{
+    <div class="metadata-select">
+        <InputText placeholder="AppConfig JSON Path" @bind-Value="filePath"></InputText>
+        <div />
+        <RadzenButton Icon="file_open" Text="Select File" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="SelectFilePath" @onclick:stopPropagation="true" />
+    </div>
+    <br />
+    <RadzenButton Text="Load" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="LoadData" @onclick:stopPropagation="true" />
+
+}
+else if (currentEditConfig is null && newlyCreatedConfig is null)
+{
+
+    <div class="top-right-buttons">
+        <RadzenButton ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Class="my-1 ms-1" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="()=>backupConfig = null">Close</RadzenButton>
+        <RadzenButton ButtonStyle="ButtonStyle.Success" Icon="add_circle_outline" Class="my-1 ms-1" Text="Create Config" Click="New" />
+    </div>
+    <br />
+
+
+    <RadzenDataGrid TItem="BackupService.BackupTaskConfig" PageSize="5" AllowAlternatingRows="false" AllowFiltering="false"
+                    AllowPaging="true" AllowSorting="false" EditMode="DataGridEditMode.Single"
+                    Data="backupConfig.BackupTaskConfigs">
+        <Columns>
+            <RadzenDataGridColumn TItem="BackupService.BackupTaskConfig" Context="config" Title="Enabled" Width="80px">
+                <Template>
+                    <RadzenCheckBox Disabled=true @bind-Value=@config.Enabled Name="CheckBox41" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BackupService.BackupTaskConfig" Context="config" Title="Path">
+                <Template>
+                    <span>@config.Path</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="BackupService.BackupTaskConfig" Context="config" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="154px">
+                <Template>
+                    <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => Edit(config))" @onclick:stopPropagation="true" />
+                    <RadzenButton Icon="copy_all" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => Copy(config))" @onclick:stopPropagation="true" />
+                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => Delete(config))" @onclick:stopPropagation="true" />
+
+                </Template>
+
+            </RadzenDataGridColumn>
+
+
+        </Columns>
+    </RadzenDataGrid>
+    @*@foreach (var config in )
+            {
+
+            <div class="config-grid">
+                <span>@config.Path</span>
+
+
+                <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Size="ButtonSize.Medium" Click="@((args) => SaveRow(command))" />
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@((args) => CancelEdit(command))" />
+                <RadzenButton ButtonStyle="ButtonStyle.Danger" Icon="delete" Variant="Variant.Flat" Shade="Shade.Lighter" Size="ButtonSize.Medium" Class="my-1 ms-1" Click="@(args => DeleteRow(command))" />
+            </div>
+            <br />
+        }
+    *@
+
+
+
+}
+else
+{
+<RadzenTemplateForm TItem="BackupService.BackupTaskConfig" Data=@currentEditConfig Submit=@SaveChanges>
+    @if (!usePasswordForConfig)
+    {
+        <div class="edit-grid">
+            <span>Credentialmanager:</span>
+            <Info Context="c">
+                <span>
+                    This stores the password of this config file in the system credential manager.<br />
+                    This is only the name of the entry, because the password will be requested seperately.
+                </span>
+            </Info>
+            <RadzenTextBox placeholder="Name for the entry in Credential Manager" @bind-Value="credMgrName"></RadzenTextBox>
+            <div />
+
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="()=>usePasswordForConfig = true">Use Password</RadzenButton>
+
+        </div>
+    }
+    else
+    {
+        <div class="edit-grid">
+            <span>Config Password:</span>
+
+            <Info Context="c">
+                <span>
+                    This stores the password as plain text in the appconfig.json.
+                    <br />
+                    Only use if necessary, otherwise use Credentialmanager instead!
+                </span>
+            </Info>
+            <RadzenPassword placeholder="Password (stored unencrypted in appsettings.json)" @bind-Value="password"></RadzenPassword>
+            <div />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="()=>usePasswordForConfig = false">Use Credential Manager</RadzenButton>
+        </div>
+    }
+    <div class="edit-grid">
+        <span>Path:</span>
+        <Info Context="c">
+            <span>
+                The Path where this config file should be stored.
+            </span>
+        </Info>
+        <RadzenTextBox placeholder="Backup Config Path" Name="BackupConfigPath" @bind-Value="currentEditConfig.Path"></RadzenTextBox>
+        <PathValidator Component="BackupConfigPath" CheckForExisting="false" CheckForDirectory="false" />
+        <div />
+        <RadzenButton Icon="file_open" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click='()=>SelectSaveFilePath("config.aes")'>Select File</RadzenButton>
+    </div>
+    <div class="edit-grid">
+        <span>Backup Ignore Path:</span>
+        <Info Context="c">
+            <span>
+                The Path to a centralized .backupignore file.
+                <br />
+                The .backupignore in the source path will always be used.
+            </span>
+        </Info>
+        <RadzenTextBox placeholder="Backup Ignore File Path" Name="BackupIgnorePath" @bind-Value="currentEditConfig.BackupIgnorePath"></RadzenTextBox>
+        <PathValidator Component="BackupIgnorePath" CheckForExisting="false" CheckForDirectory="false" />
+        <div />
+        <RadzenButton Icon="file_open" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click='()=>SelectSaveFilePath("")'>Select File</RadzenButton>
+    </div>
+    <br />
+    <div class="edit-grid">
+        <span>Backup Index Path:</span>
+        <Info Context="c">
+            <span>
+                The Path to a centralized backupIndex.aes.zip file.
+                <br />
+                The backupIndex.aes.zip contains the info about the backup containing files for incremental and differential backups.
+            </span>
+        </Info>
+        <RadzenTextBox placeholder="Backup Index File Path" Name="BackupIndexPath" @bind-Value="currentEditConfig.BackupIndexPath"></RadzenTextBox>
+        <PathValidator Component="BackupIndexPath" CheckForExisting="false" CheckForDirectory="false" />
+        <div />
+        <RadzenButton Icon="file_open" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click='SelectBackupIndexPath'>Select File</RadzenButton>
+    </div>
+    <br />
+
+    <div class="edit-grid">
+        <span>Enabled:</span>
+        <Info Context="c">
+            <span>
+                Can be used to disable or enable this backup configuration.
+                <br />
+                When disabled no backups will take place of these paths.
+            </span>
+        </Info>
+        <RadzenCheckBox @bind-Value="currentEditConfig.Enabled"></RadzenCheckBox>
+    </div>
+
+    <div class="edit-grid">
+        <span>Recursive:</span>
+        <Info Context="c">
+            <span>
+                Wether to only backup the top directory or include child directories as well.
+            </span>
+        </Info>
+        <RadzenCheckBox @bind-Value="currentEditConfig.Recursive"></RadzenCheckBox>
+    </div>
+    <div class="edit-grid">
+        <span>Fast Check:</span>
+        <Info Context="c">
+            <span>
+                Wether to to compare change date and size only.
+                <br/>
+                If disabled the md5 hash will always be compared
+            </span>
+        </Info>
+        <RadzenCheckBox @bind-Value="currentEditConfig.FastDifferenceCheck"></RadzenCheckBox>
+    </div>
+    <div class="edit-grid">
+        <span>Split Archives:</span>
+        <Info Context="c">
+            <span>
+                Wether to have a seperate archive per source path or put all into same archive.
+                <br />
+                When archives are not splitter, an archive name should be provided.
+                <br />
+                Also the archive will always have full path in them not just path since common root.
+            </span>
+        </Info>
+        <RadzenCheckBox @bind-Value="currentEditConfig.SplitArchives"></RadzenCheckBox>
+    </div>
+    @if (!currentEditConfig.SplitArchives)
+    {
+
+        <div class="edit-grid">
+            <span>Archive Name:</span>
+            <Info Context="c">
+                <span>
+                    This will be the first part of the archive name.
+                    <br />
+                    Archives will always contain the date, time and backup type in the name.
+                    <br />
+                    Only used for non splitted archive backups.
+                </span>
+            </Info>
+            <RadzenTextBox placeholder="Archive name" @bind-Value="currentEditConfig.ArchiveName"></RadzenTextBox>
+        </div>
+    }
+    @if (!usePasswordForBackup)
+    {
+        <div class="edit-grid">
+            <span>Backup Credentialname:</span>
+            <Info Context="c">
+                <span>
+                    This is the name of the password, which which is stored in the credential manager.
+                    <br />
+                    The stored password in the credential manager will be used as the archive password.
+                </span>
+            </Info>
+            <RadzenTextBox placeholder="Password name" @bind-Value="backupPasswordName"></RadzenTextBox>
+            <div />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="()=>usePasswordForBackup = true">Use Password</RadzenButton>
+        </div>
+    }
+    else
+    {
+        <div class="edit-grid">
+            <span>Backup Password:</span>
+            <Info Context="c">
+                <span>
+                    This is the password, which is used to encrypt the backup archives.
+                    <br />
+                    Will be stored inside the backup config, encrypted with the
+                    <br />
+                    <b>Credentialmanager</b> or <b>Config Password</b>.
+                </span>
+            </Info>
+            <RadzenPassword placeholder="Password (stored encrypted)" @bind-Value="backupPassword"></RadzenPassword>
+            <div />
+            <RadzenButton ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="()=>usePasswordForBackup = false">Use Credential Manager</RadzenButton>
+        </div>
+    }
+
+
+    <div class="edit-grid">
+        <span>Source Paths:</span>
+        <Info Context="c">
+            <span>
+                All source path directories. Every new line is a new Path.
+                <br />
+                For each path a new archive will be created in every target path.
+            </span>
+        </Info>
+        <div class="col grid-span-multiple">
+            <RadzenTextArea placeholder="Paths of the source directories to backup" Name="SourcePaths" @bind-Value="sourcePaths"></RadzenTextArea>
+            <PathValidator Component="SourcePaths" />
+            <RadzenRequiredValidator Component="SourcePaths" />
+        </div>
+    </div>
+    <div class="edit-grid">
+        <span>Target Paths:</span>
+        <Info Context="c">
+            <span>
+                If you want to have multiple copies of the same backup,
+                <br />
+                than you have to have multiple target paths. Every new line is a new Path.
+            </span>
+        </Info>
+        <div class="col grid-span-multiple">
+            <RadzenTextArea placeholder="Paths where copies of this backup should be stored" Name="TargetPaths" @bind-Value="targetPaths"></RadzenTextArea>
+            <PathValidator Component="TargetPaths" CheckForExisting="false" />
+            <RadzenRequiredValidator Component="TargetPaths" />
+        </div>
+    </div>
+
+    <div class="edit-grid">
+        <span>Schedules:</span>
+        <Info Context="c">
+            <span>
+                Configure when to run this backup.
+                <br />
+                Multiple schedules can be combined for better configuration.
+            </span>
+        </Info>
+        <div class="grid-span-multiple">
+
+
+            <DataTable Objects="@currentEditConfig.Schedules" TObject="BackupService.Scheduling.Schedule"
+                       Inserts="inserterSchedules" FinishedEdit="FinishedScheduleGridEdit" CanceledEdit="CanceledScheduleGridEdit">
+                <Columns>
+
+                    <RadzenDataGridColumn TItem="BackupService.Scheduling.Schedule" Title="Type" Width="120px">
+                        <Template Context="data">
+                            <span>@data.GetType().Name</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="BackupService.Scheduling.Schedule" Title="Backup Type" Width="120px">
+                        <Template Context="data">
+                            <span>@data.BackupType</span>
+                        </Template>
+                        <EditTemplate Context="data">
+                            <RadzenDropDown Multiple="false" Data=@backupTypes @bind-Value=@data.BackupType Style="width:100px" />
+                        </EditTemplate>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="BackupService.Scheduling.Schedule" Title="Config">
+                        <Template Context="data">
+                            @switch (data)
+                            {
+                                case CronSchedule cronSchedule:
+                                    <span>@cronSchedule.Expression</span>
+                                    break;
+                                case IntervalSchedule intervalSchedule:
+                                    var ts = @TimeSpan.FromSeconds(intervalSchedule.SecondsAfter);
+                                    <span>@ts.ToString("d'd 'hh'h 'mm'm 'ss's'")</span>
+                                    break;
+                                case MutliPeriodSchedule multiPeriodSchedule:
+                                    <span>@multiPeriodSchedule.DaysOfWeek</span>
+                                    <span>@string.Join(',', multiPeriodSchedule.TimesOfDay)</span>
+                                    break;
+                                case PeriodSchedule periodSchedule:
+                                    <span>@periodSchedule.DaysOfWeek</span>
+                                    <span>@periodSchedule.TimeOfDay.ToLongTimeString()</span>
+                                    break;
+                            }
+                        </Template>
+                        <EditTemplate Context="data">
+                            @switch (data)
+                            {
+                                case CronSchedule cronSchedule:
+                                    <RadzenTextBox @bind-Value="cronSchedule.Expression" Name="CronTextbox"></RadzenTextBox>
+                                    <CronValidator Component="CronTextbox" />
+                                    break;
+                                case IntervalSchedule intervalSchedule:
+                                    <RadzenNumeric Format="0d" TValue="int" Value="(int)(intervalSchedule.SecondsAfter/86400)" Change="(v)=>CalcNewSeconds(v, 86400, 10000, intervalSchedule)" Style="width:60px" Max="@(int.MaxValue/ 86400)" />
+                                    <RadzenNumeric Format="0h" TValue="int" Value="(int)(intervalSchedule.SecondsAfter/3600)%24" Change="(v)=>CalcNewSeconds(v, 3600, 24, intervalSchedule)" Style="width: 60px" Max="@(int.MaxValue/3600)" />
+                                    <RadzenNumeric Format="0m" TValue="int" Value="(int)((intervalSchedule.SecondsAfter/60)%60)" Change="(v)=>CalcNewSeconds(v, 60, 60, intervalSchedule)" Style="width: 60px" Max="@(int.MaxValue/60)" />
+                                    <RadzenNumeric Format="0s" TValue="int" Value="(int)(intervalSchedule.SecondsAfter%60)" Change="(v)=>CalcNewSeconds(v, 1, 60, intervalSchedule)" Style="width: 60px" Max="@int.MaxValue" />
+                                    break;
+                                case PeriodSchedule periodSchedule:
+                                    <RadzenDropDown Multiple="true" Data=@daysOfWeek @bind-Value=@periodSchedule.SelectedDaysOfWeek />
+                                    <RadzenDatePicker @bind-Value=@periodSchedule.TimeOfDayDate ShowTime="true" TimeOnly="true" ShowSeconds="true" DateFormat="HH:mm:ss" />
+                                    break;
+                            }
+                        </EditTemplate>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="BackupService.Scheduling.Schedule" Title="Next Run Local Time" Width="140px">
+                        <Template Context="data">
+                            <span>@data.NextOccurence(DateTime.UtcNow.Add(timeOffset))</span>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+
+            </DataTable>
+        </div>
+    </div>
+
+
+    <RadzenButton ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" Click="CancelEdit">Cancel</RadzenButton>
+    <RadzenButton ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" Shade="Shade.Darker" Size="ButtonSize.Medium" ButtonType="ButtonType.Submit">Save</RadzenButton>
+</RadzenTemplateForm>
+
+}
+
+@code {
+    private BackupAppConfig? backupConfig = null;
+    private BackupService.BackupTaskConfig? newlyCreatedConfig = null;
+    private BackupService.BackupTaskConfig? currentEditConfig = null;
+    private BackupService.ConfigPath? editConfigPath = null;
+    private string sourcePaths = "";
+    private string targetPaths = "";
+    private string credMgrName = "";
+    private string password = "";
+    private string filePath = "";
+    private bool usePasswordForConfig = false;
+    private bool usePasswordForBackup = false;
+    private string backupPassword = "";
+    private string backupPasswordName = "";
+    private TimeSpan timeOffset = new DateTime(DateTime.Now.Ticks, DateTimeKind.Utc) - DateTime.UtcNow;
+
+    private BackupService.BackupType[] backupTypes = Enum.GetValues<BackupService.BackupType>();
+    private DaysOfWeek[] daysOfWeek = Enum.GetValues<DaysOfWeek>().Where(x => /*((int)x & ((int)x - 1)) == 0 &&*/ (int)x > 0).ToArray();
+
+
+    private async Task SelectBackupIndexPath()
+    {
+        currentEditConfig.BackupIndexPath = await RecoveryService.FileSave("zip");
+    }
+
+    private List<(string, Func<Schedule>)> inserterSchedules = new List<(string, Func<Schedule>)>()
+{
+        ("Add Interval Schedule", ()=>new IntervalSchedule()),
+        ("Add Cron Schedule", ()=>new CronSchedule()),
+        ("Add Period Schedule", ()=>new PeriodSchedule())
+    };
+    private List<(string, Func<BackupEvent>)> inserterBackupEvents = new()
+{
+        ("Add Program Start", ()=>new ProgrammEvent()),
+    };
+
+
+    private async Task SelectFilePath()
+    {
+        filePath = await RecoveryService.GetFilePath("json");
+    }
+    private async Task SelectSaveFilePath(string filter)
+    {
+        var ret = await RecoveryService.FileSave(filter);
+        if (string.IsNullOrWhiteSpace(ret))
+            return;
+        currentEditConfig.Path = ret;
+    }
+
+    private async Task LoadData()
+    {
+
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        backupConfig = ConfigService.LoadAppConfig(filePath);
+
+        foreach (var config in backupConfig.BackupTaskConfigs)
+        {
+            foreach (var sched in config.Schedules)
+            {
+                CanceledScheduleGridEdit(sched);
+            }
+        }
+
+    }
+
+    private void Edit(BackupService.BackupTaskConfig config)
+    {
+        currentEditConfig = config;
+        editConfigPath = backupConfig.Backup.ConfigPaths.FirstOrDefault(x => x.Path == config.Path);
+        if (editConfigPath != default)
+        {
+            password = editConfigPath.Password;
+            credMgrName = editConfigPath.CredentialName;
+        }
+        sourcePaths = string.Join('\n', config.BackupSources);
+        targetPaths = string.Join('\n', config.TargetSources);
+        usePasswordForBackup = !currentEditConfig.CredentialManager;
+        backupPassword = usePasswordForBackup ? currentEditConfig.Password : "";
+        backupPasswordName = usePasswordForBackup ? "" : currentEditConfig.Password;
+
+    }
+    private void Delete(BackupService.BackupTaskConfig config)
+    {
+        backupConfig.BackupTaskConfigs.Remove(config);
+        var cp = backupConfig.Backup.ConfigPaths.FirstOrDefault(x => x.Path == config.Path);
+        backupConfig.Backup.ConfigPaths.Remove(cp);
+
+        ConfigService.Delete(config, backupConfig, filePath);
+    }
+
+    private void Copy(BackupService.BackupTaskConfig config)
+    {
+        using var ms = new MemoryStream();
+        using (var sw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true))
+        {
+            config.Serialize(sw);
+        }
+        ms.Position = 0;
+        using (var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: false))
+        {
+            newlyCreatedConfig = BackupService.BackupTaskConfig.Deserialize(br);
+        }
+        Edit(newlyCreatedConfig);
+    }
+
+    private void New()
+    {
+        newlyCreatedConfig = new();
+        Edit(newlyCreatedConfig);
+    }
+    private void SaveChanges()
+    {
+        if (currentEditConfig is null || backupConfig is null)
+            return;
+
+        BackupService.ConfigPath configPath;
+        if (newlyCreatedConfig is not null)
+        {
+            backupConfig.BackupTaskConfigs.Add(newlyCreatedConfig);
+            configPath = new();
+            backupConfig.Backup.ConfigPaths.Add(configPath);
+        }
+        else if (editConfigPath == default)
+        {
+            throw new Exception("This should not happen, someting is wrong in the appsettings.json");
+        }
+        else
+        {
+            configPath = editConfigPath;
+        }
+
+        configPath.Password = usePasswordForBackup ? password : "";
+        configPath.CredentialName = usePasswordForBackup ? "" : credMgrName;
+        configPath.Path = currentEditConfig.Path;
+        currentEditConfig.Password = usePasswordForBackup ? backupPassword : backupPasswordName;
+        currentEditConfig.CredentialManager = !usePasswordForBackup;
+
+        currentEditConfig.BackupSources = sourcePaths.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+        currentEditConfig.TargetSources = targetPaths.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        ConfigService.Save(currentEditConfig, configPath, backupConfig, filePath);
+        CancelEdit();
+    }
+    private void CancelEdit()
+    {
+        newlyCreatedConfig = currentEditConfig = null;
+        editConfigPath = null;
+        usePasswordForBackup = usePasswordForConfig = false;
+        sourcePaths = targetPaths = credMgrName = password = "";
+    }
+
+    private void FinishedScheduleGridEdit(Schedule schedule)
+    {
+        if (schedule is not PeriodSchedule ps)
+            return;
+        ps.DaysOfWeek = DaysOfWeek.None;
+        foreach (var item in ps.SelectedDaysOfWeek)
+        {
+            ps.DaysOfWeek |= item;
+        }
+    }
+
+    private void CanceledScheduleGridEdit(Schedule schedule)
+    {
+        if (schedule is not PeriodSchedule ps)
+            return;
+        ps.SelectedDaysOfWeek = daysOfWeek.Where(x => (x & ps.DaysOfWeek) > 0).ToList();
+    }
+
+    private void CalcNewSeconds(int change, uint changeChange, uint changeAfterChange, IntervalSchedule iv)
+    {
+        var relevantPart = (iv.SecondsAfter / changeChange) % changeAfterChange;
+
+        var toSubstract = relevantPart * changeChange;
+
+        iv.SecondsAfter -= toSubstract;
+        var newVal = ((int)iv.SecondsAfter + (change * changeChange));
+        newVal = Math.Max(newVal, 0);
+        iv.SecondsAfter = (uint)newVal;
+    }
+}

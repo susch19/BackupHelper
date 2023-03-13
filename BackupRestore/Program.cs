@@ -13,7 +13,12 @@ public class Programm
     [STAThread]
     public static void Main(string[] args)
     {
-        SevenZipBase.SetLibraryPath("C:\\Program Files\\7-Zip\\7z.dll");
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json")
+        .Build();
+
+
+        SevenZipBase.SetLibraryPath(configuration.GetValue<string>("SevenZipDllPath"));
         var builder = PhotinoBlazorAppBuilder.CreateDefault(args);
 
         // Add services to the container.
@@ -21,6 +26,7 @@ public class Programm
         builder.RootComponents.Add<App>("app");
         builder.Services.AddScoped<DialogService>();
         builder.Services.AddScoped<NotificationService>();
+        builder.Services.AddScoped<ConfigService>();
         builder.Services.AddScoped<TooltipService>();
         builder.Services.AddScoped<ContextMenuService>();
 

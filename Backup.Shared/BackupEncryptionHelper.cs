@@ -1,30 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.IO;
+﻿using NonSucking.Framework.Serialization;
+
 using System.IO.Compression;
-using System.Linq;
-using System.Reflection.Metadata;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Backup.Shared;
-public class MetaDataHeader
+[Nooson]
+public partial class MetaDataHeader
 {
     public int Version { get; set; }
-
-    public void Serialize(BinaryWriter bw)
-    {
-        bw.Write(Version);
-    }
-
-    public static MetaDataHeader Deserialize(BinaryReader br)
-    {
-        MetaDataHeader header = new();
-        header.Version = br.ReadInt32();
-        return header;
-    }
 }
 
 public class BackupEncryptionHelper
@@ -42,21 +26,43 @@ public class BackupEncryptionHelper
         return (MetaDataHeader.Deserialize(br), iv.ToArray());
     }
 
+    public static BinaryWriter OpenEncryptedWriter(Stream stream, byte[] pw, bool zipped = true)
+    {
+        using var aes = Aes.Create();
+        aes.Key = SHA256.HashData(pw);
+        aes.GenerateIV();
+        stream.Write(aes.IV);
+
+        var cs = new CryptoStream(stream, aes.CreateEncryptor(), CryptoStreamMode.Write);
+        Stream zip = !zipped ? cs : new ZLibStream(cs, System.IO.Compression.CompressionLevel.Optimal);
+        return new BinaryWriter(zip);
+    }
+
+    public static BinaryReader OpenEncryptedReaderFor(Stream stream, byte[] pw, bool zipped = true, byte[]? iv = null)
+    {
+        using var aes = Aes.Create();
+
+        if (iv is null)
+        {
+            iv = new byte[16];
+
+            stream.Read(iv);
+        }
+        aes.Key = SHA256.HashData(pw);
+        aes.IV = iv;
+        var cs = new CryptoStream(stream, aes.CreateDecryptor(), CryptoStreamMode.Read);
+        Stream zip = !zipped ? cs : new ZLibStream(cs, CompressionMode.Decompress);
+        return new BinaryReader(zip);
+    }
+
     public static (BackupFileNameIndex, List<T>) DecryptMetaData<T>(byte[] pw, Stream metaDataContent, byte[] iv) where T : IFileNode<T>, IFileNode
     {
         List<T> returnValues = new();
 
-        using var aes = Aes.Create();
+        using var br = OpenEncryptedReaderFor(metaDataContent, pw, true, iv);
 
-        aes.Key = SHA256.HashData(pw);
-        aes.IV = iv;
-        using var cs = new CryptoStream(metaDataContent, aes.CreateDecryptor(), CryptoStreamMode.Read);
-        using var zip = new ZLibStream(cs, System.IO.Compression.CompressionMode.Decompress);
-        using var br = new BinaryReader(zip);
+        BackupFileNameIndex fileIndex = BackupFileNameIndex.Deserialize(br);
 
-
-        BackupFileNameIndex fileIndex = new();
-        fileIndex.Deserialize(br);
         var rootNodeCount = br.ReadInt32();
         for (int c = 0; c < rootNodeCount; c++)
         {
@@ -67,18 +73,14 @@ public class BackupEncryptionHelper
 
     public static void SaveMetaDataFile<T>(byte[] pw, Stream stream, MetaDataHeader header, BackupFileNameIndex fileIndex, List<T> returnValues) where T : IFileNode<T>, IFileNode
     {
-        using var aes = Aes.Create();
-        aes.Key = SHA256.HashData(pw);
-        aes.GenerateIV();
-        stream.Write(aes.IV);
+
+
+        using var bw = OpenEncryptedWriter(stream, pw);
         {
-            using var bw = new BinaryWriter(stream, Encoding.UTF8, true);
-            header.Serialize(bw);
+            using var bwUnecr = new BinaryWriter(stream, Encoding.UTF8, true);
+            header.Serialize(bwUnecr);
         }
         {
-            using var cs = new CryptoStream(stream, aes.CreateEncryptor(), CryptoStreamMode.Write);
-            using var zip = new ZLibStream(cs, System.IO.Compression.CompressionLevel.Optimal);
-            using var bw = new BinaryWriter(zip);
             fileIndex.Serialize(bw);
             bw.Write(returnValues.Count);
             foreach (var item in returnValues)
@@ -138,7 +140,7 @@ public class BackupEncryptionHelper
 
             while (stack.Count > 0)
             {
-                var  current = stack.Pop();
+                var current = stack.Pop();
 
                 current.Children = current.Children.OrderByDescending(x => x.Children.Any()).ThenBy(x => x.Name).ToList();
                 for (int i = current.Children.Count - 1; i >= 0; i--)

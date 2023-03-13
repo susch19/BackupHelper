@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -250,7 +249,7 @@ namespace AdysTech.CredentialManager
         /// <param name="credential">Credential to store</param>
         /// <param name="type">Credential type</param>
         /// <returns>True:Success, throw if failed</returns>
-        public static ICredential SaveCredentials(string target, NetworkCredential credential, CredentialType type = CredentialType.Generic, bool AllowNullPassword= false)
+        public static ICredential SaveCredentials(string target, NetworkCredential credential, CredentialType type = CredentialType.Generic, bool AllowNullPassword = false)
         {
             // Go ahead with what we have are stuff it into the CredMan structures.
             var cred = new Credential(credential)
@@ -259,7 +258,7 @@ namespace AdysTech.CredentialManager
                 Persistance = Persistance.Enterprise,
                 Type = type
             };
-            if( cred.SaveCredential(AllowNullPassword))
+            if (cred.SaveCredential(AllowNullPassword))
             {
                 return cred;
             }

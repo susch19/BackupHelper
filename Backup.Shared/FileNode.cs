@@ -1,14 +1,30 @@
-﻿namespace Backup.Shared;
+﻿using NonSucking.Framework.Serialization;
+
+namespace Backup.Shared;
 
 
-public class FileNode : IFileNode<FileNode>, IFileNode
+[Nooson]
+public partial class FileNode : IFileNode<FileNode>, IFileNode
 {
+    [NoosonOrder(int.MinValue)]
+    public int Version { get; set; }
+
+    [NoosonOrder(0)]
     public string Name { get; set; }
+    [NoosonIgnore]
     public string FullPath { get; set; }
+    [NoosonIgnore]
     public DateTime ChangeDate { get; set; }
+    [NoosonOrder(1)]
     public HashSet<uint> BackupFileIndeces { get; set; } = new();
+    [NoosonIgnore]
     public FileNode? Parent { get; set; }
+    [NoosonOrder(2)]
     public List<FileNode> Children { get; set; } = new();
+
+    private FileNode(string name) : this(name, null)
+    {
+    }
 
     public FileNode(string name, FileNode? parent)
     {
@@ -24,27 +40,13 @@ public class FileNode : IFileNode<FileNode>, IFileNode
         Parent = parent;
     }
 
-    public void Serialize(BinaryWriter bw)
-    {
-        bw.Write(Name);
-
-        bw.Write(BackupFileIndeces.Count);
-        foreach (var item in BackupFileIndeces)
-        {
-            bw.Write(item);
-        }
-        bw.Write(Children.Count);
-        foreach (var item in Children)
-        {
-            item.Serialize(bw);
-        }
-    }
 
     public static FileNode Deserialize(BinaryReader br, FileNode? parent)
     {
+        var version = br.ReadInt32();
         var name = br.ReadString();
 
-        var fn = new FileNode(name, parent);
+        var fn = new FileNode(name, parent) { Version = version };
         var indices = br.ReadInt32();
         for (int i = 0; i < indices; i++)
         {

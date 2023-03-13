@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
@@ -164,7 +163,7 @@ namespace AdysTech.CredentialManager
             }
         }
 
-        public bool SaveCredential(bool AllowBlankPassword=false)
+        public bool SaveCredential(bool AllowBlankPassword = false)
         {
             IntPtr buffer = default(IntPtr);
             GCHandle pinned = default(GCHandle);
