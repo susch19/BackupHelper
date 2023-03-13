@@ -35,16 +35,17 @@ public class ConfigService
 
         var appConfig = JsonSerializer.Deserialize<BackupAppConfig>(content);
 
-        ScheduleManager.CheckBackupConfigs(appConfig.Backup, appConfig.BackupTaskConfigs, ref saveCredentials);
+        ScheduleManager.CheckBackupConfigs(appConfig.Backup, appConfig.BackupTaskConfigs, null, ref saveCredentials);
 
         foreach (var item in appConfig.BackupTaskConfigs.Where(x => x.Version == 0))
         {
             item.BackupIgnorePath = Path.Combine(Path.GetDirectoryName(item.Path), ".backupignore");
             item.Version = 1;
         }
-        foreach (var item in appConfig.BackupTaskConfigs.Where(x => x.Version == 1))
+
+        foreach (var item in appConfig.BackupTaskConfigs.Where(x => x.Version == 1 || x.Version ==  2))
         {
-            item.Version = 2;
+            item.Version = 3;
         }
 
         return appConfig;
@@ -53,6 +54,8 @@ public class ConfigService
     public void Save(BackupTaskConfig config, ConfigPath metadata, BackupAppConfig appConfig, string appConfigPath)
     {
         var password = CredentialHelper.GetCredentialsFor(metadata.CredentialName, metadata.Password, "Config Password", ref saveCredentials);
+
+        config.Version = 5;
 
         using (var fs = File.OpenWrite(config.Path))
         {
@@ -64,7 +67,7 @@ public class ConfigService
     }
     public void Delete(BackupTaskConfig config, BackupAppConfig appConfig, string appConfigPath)
     {
-        File.Delete(config.Path);
+        //File.Delete(config.Path);
 
         File.WriteAllText(appConfigPath, JsonSerializer.Serialize(appConfig, jsonOptions));
     }

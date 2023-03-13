@@ -59,7 +59,7 @@ public class BackupEncryptionHelper
     {
         List<T> returnValues = new();
 
-        var br = OpenEncryptedReaderFor(metaDataContent, pw, true, iv);
+        using var br = OpenEncryptedReaderFor(metaDataContent, pw, true, iv);
 
         BackupFileNameIndex fileIndex = BackupFileNameIndex.Deserialize(br);
 
@@ -74,8 +74,8 @@ public class BackupEncryptionHelper
     public static void SaveMetaDataFile<T>(byte[] pw, Stream stream, MetaDataHeader header, BackupFileNameIndex fileIndex, List<T> returnValues) where T : IFileNode<T>, IFileNode
     {
 
-        var bw = OpenEncryptedWriter(stream, pw);
 
+        using var bw = OpenEncryptedWriter(stream, pw);
         {
             using var bwUnecr = new BinaryWriter(stream, Encoding.UTF8, true);
             header.Serialize(bwUnecr);

@@ -2,6 +2,7 @@
 
 using SevenZip;
 
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,30 +13,40 @@ using CompressionMode = System.IO.Compression.CompressionMode;
 namespace BackupService;
 public class BackupDiffer
 {
-    public (Dictionary<string, BackupFileChange> changes, BackupType backupType)? GetChangedFiles(string sourcePath, string secondIgnore, bool fastExit, bool recursive, BackupType backupType)
+    public (Dictionary<string, BackupFileChange> changes, BackupType backupType)? GetChangedFiles(string sourcePath, string secondIgnore, string backupIndex, bool fastExit, bool recursive, BackupType backupType)
     {
         var ignore = new BackupIgnore();
-        var backupIgnorePath = new FileInfo(Path.Combine(sourcePath, ".backupignore"));
-        if (backupIgnorePath.Exists)
+        var singleFile = new FileInfo(sourcePath);
+        FileInfo[] allFiles;
+        if (singleFile.Exists)
+            allFiles = new[] { singleFile };
+        else
         {
-            ignore.Add(File.ReadAllLines(backupIgnorePath.FullName).Where(x => !string.IsNullOrWhiteSpace(x)));
-        }
-        var secondBackupIgnorePath = new FileInfo(secondIgnore);
 
-        if (secondBackupIgnorePath.Exists)
-        {
-            ignore.Add(File.ReadAllLines(secondBackupIgnorePath.FullName).Where(x => !string.IsNullOrWhiteSpace(x)));
+            var backupIgnorePath = new FileInfo(Path.Combine(sourcePath, ".backupignore"));
+            if (backupIgnorePath.Exists)
+            {
+                ignore.Add(File.ReadAllLines(backupIgnorePath.FullName).Where(x => !string.IsNullOrWhiteSpace(x)));
+            }
+            var secondBackupIgnorePath = new FileInfo(secondIgnore);
+
+            if (secondBackupIgnorePath.Exists)
+            {
+                ignore.Add(File.ReadAllLines(secondBackupIgnorePath.FullName).Where(x => !string.IsNullOrWhiteSpace(x)));
+            }
+            var dirName = backupIgnorePath.DirectoryName!;
+
+            allFiles = Directory
+                   .GetFiles(sourcePath, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
+                   //.AsParallel()
+                   .Where(x => !ignore.IsIgnored(x[(dirName.Length + 1)..]))
+                   .Select(x => new FileInfo(x))
+                   .Where(x => !ignore.IsIgnored(x))
+                   .ToArray();
+            //File.WriteAllLines("allfiles.txt", allFiles.Select(x => x.FullName).ToArray());
+
         }
-        var dirName = backupIgnorePath.DirectoryName!;
-        string backupIndex = "backupIndex.aes.zip";
         BackupFileChangeIndex index;
-        var allFiles = Directory
-                .GetFiles(sourcePath, "*", recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly)
-                .Where(x => !ignore.IsIgnored(x[(dirName.Length + 1)..]))
-                .Select(x => new FileInfo(x))
-                .Where(x => !ignore.IsIgnored(x))
-                .ToArray();
-        //File.WriteAllLines("allfiles.txt", allFiles.Select(x => x.FullName).ToArray());
         if (File.Exists(backupIndex))
         {
             using var fs = File.Open(backupIndex, FileMode.Open);
@@ -50,8 +61,9 @@ public class BackupDiffer
         }
         var indexChange = index.LastChangeUTC;
         BackupFileChange backupInfo;
-        Dictionary<string, BackupFileChange> changes = new();
+        ConcurrentDictionary<string, BackupFileChange> changes = new();
         bool onlyNew = true;
+
         foreach (var file in allFiles)
         {
             byte[] md5;
@@ -73,7 +85,8 @@ public class BackupDiffer
                 }
                 try
                 {
-                    md5 = MD5.HashData(File.OpenRead(file.FullName));
+                    using var stream = File.OpenRead(file.FullName);
+                    md5 = MD5.HashData(stream);
                 }
                 catch (Exception)
                 {
@@ -90,7 +103,8 @@ public class BackupDiffer
             {
                 try
                 {
-                    md5 = MD5.HashData(File.OpenRead(file.FullName));
+                    using var stream = File.OpenRead(file.FullName);
+                    md5 = MD5.HashData(stream);
                 }
                 catch (Exception)
                 {
@@ -100,18 +114,27 @@ public class BackupDiffer
             index.LastChangeUTC = DateTime.UtcNow;
             backupInfo = new() { MD5 = md5, LastWriteTimeUtc = changeDate, Length = length, BackupType = backupType };
             changes[file.FullName] = backupInfo;
-        }
+        }//);
 
         if (index.LastChangeUTC == indexChange) //No changes made
             return null;
 
-        return (changes, onlyNew ? BackupType.Full : backupType);
+        return (changes.ToDictionary(x => x.Key, x => x.Value), onlyNew ? BackupType.Full : backupType);
     }
 
-    public string BackupDetectedChanges(Dictionary<string, BackupFileChange> changes, string sourcePath, string outputPath, string password, BackupType backupType)
+    public string BackupDetectedChanges(Dictionary<string, BackupFileChange> changes, string sourcePath, string outputPath, string password, string archiveName, BackupType backupType)
     {
-        var sourceDir = new DirectoryInfo(sourcePath);
-        string outFile = GetBackupFileName(sourceDir, outputPath, backupType);
+        DirectoryInfo? sourceDir = null;
+        try
+        {
+            sourceDir = new DirectoryInfo(sourcePath);
+        }
+        catch (Exception)
+        {
+
+        }
+
+        string outFile = GetBackupFileName(sourceDir?.Name ?? archiveName, outputPath, backupType);
 
         var compressor = new SevenZipCompressor
         {
@@ -123,21 +146,20 @@ public class BackupDiffer
             ZipEncryptionMethod = ZipEncryptionMethod.Aes256
         };
 
-        compressor.CompressFilesEncrypted(outFile, (sourceDir.Parent?.FullName.Length ?? sourceDir.FullName.Length) + 1, password, changes.Keys.ToArray());
+        compressor.CompressFilesEncrypted(outFile, (sourceDir?.Parent?.FullName.Length ?? sourceDir?.FullName.Length ?? -1) + 1, password, changes.Keys.ToArray());
         return outFile;
     }
 
-    public static string GetBackupFileName(DirectoryInfo sourceDir, string outputPath, BackupType backupType)
+    public static string GetBackupFileName(string name, string outputPath, BackupType backupType)
     {
-        var fileName = $"{sourceDir.Name} {DateTime.UtcNow:yyyy-MM-dd HH;mm;ss} ({backupType}).7z";
+        var fileName = $"{name} {DateTime.UtcNow:yyyy-MM-dd HH;mm;ss} ({backupType}).7z";
         var outFile = Path.Combine(outputPath, fileName);
         return outFile;
     }
 
-    public void StoreNewChangesInIndex(Dictionary<string, BackupFileChange> changes)
+    public void StoreNewChangesInIndex(Dictionary<string, BackupFileChange> changes, string backupIndex)
     {
 
-        string backupIndex = "backupIndex.aes.zip";
         BackupFileChangeIndex index;
         if (File.Exists(backupIndex))
         {

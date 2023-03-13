@@ -9,6 +9,6 @@ public interface IIgnoreRule
     public const string NewerThanLine = "#NewerThan ";
 
     bool Negate { get; }
-    public bool IsMatch<T>(T value);
+    public bool ShouldIgnore<T>(T value);
 
 }

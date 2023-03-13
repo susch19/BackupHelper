@@ -38,13 +38,13 @@ namespace Ignore
 
         }
 
-        public bool IsMatch<T>(T value)
+        public bool ShouldIgnore<T>(T value)
         {
             if (value is not FileInfo fi)
                 return Negate;
 
-            return (newerThan && fi.LastWriteTimeUtc.Add(span) >= DateTime.UtcNow)
-                || (!newerThan && fi.LastWriteTimeUtc.Add(span) <= DateTime.UtcNow);
+            return (newerThan && fi.LastWriteTimeUtc.Add(span) < DateTime.UtcNow)
+                || (!newerThan && fi.LastWriteTimeUtc.Add(span) > DateTime.UtcNow);
 
         }
     }
@@ -82,11 +82,11 @@ namespace Ignore
 
         }
 
-        public bool IsMatch<T>(T value)
+        public bool ShouldIgnore<T>(T value)
         {
             if (value is not FileInfo fi)
                 return Negate;
-            return (smaller && fi.Length <= Size) || (!smaller && fi.Length >= Size);
+            return (smaller && fi.Length > Size) || (!smaller && fi.Length < Size);
 
         }
     }
@@ -191,7 +191,7 @@ namespace Ignore
 
         public bool Negate { get; }
 
-        public bool IsMatch<T>(T input)
+        public bool ShouldIgnore<T>(T input)
         {
             if (input is not string inp)
                 return Negate;

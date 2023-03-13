@@ -23,31 +23,31 @@ public class RecoveryService
 
     }
 
-    public string FileSave(string filter)
+    public Task<string> FileSave(string filter)
     {
         var file = NativeFileDialogSharp.Dialog.FileSave(filter);
         if (file.IsOk)
         {
             var end = "." + filter;
             if (file.Path.EndsWith(end, StringComparison.OrdinalIgnoreCase))
-                return file.Path;
-            return file.Path + end;
+                return Task.FromResult(file.Path);
+            return Task.FromResult(file.Path + end);
         }
-        return "";
+        return Task.FromResult("");
     }
-    public string GetFilePath(string filter)
+    public Task<string> GetFilePath(string filter)
     {
         var file = NativeFileDialogSharp.Dialog.FileOpen(filter);
         if (file.IsOk)
-            return file.Path;
-        return "";
+            return Task.FromResult(file.Path);
+        return Task.FromResult("");
     }
-    public string GetDirectoryPath()
+    public Task<string> GetDirectoryPath()
     {
         var dir = NativeFileDialogSharp.Dialog.FolderPicker();
         if (dir.IsOk)
-            return dir.Path;
-        return "";
+            return Task.FromResult(dir.Path);
+        return Task.FromResult("");
     }
     public void RestoreFiles(string restorePath, string password, FileDisplayInfo[] nodes, BackupFileNameIndex index)
     {

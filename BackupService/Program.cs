@@ -1,17 +1,48 @@
 using BackupService;
 using BackupService.Scheduling;
 
-var builder = Host.CreateApplicationBuilder(args);
+using Microsoft.Extensions.Logging;
 
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+using NLog;
+using NLog.Extensions.Logging;
+Logger logger = null;
+try
+{
+    var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services
-    .AddSingleton<BackupsConfig>()
-    .AddSingleton<BackupDiffer>()
-    .AddHostedService<ScheduleManager>()
-    .Configure<BackupsConfig>(builder.Configuration.GetSection(BackupsConfig.ConfigName));
+    var config = builder
+        .Configuration
+        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        .Build();
 
-var host = builder.Build();
+    logger = LogManager.Setup()
+                       .LoadConfigurationFromSection(config)
+                       .GetCurrentClassLogger();
+    
+    builder.Services
+        .AddSingleton<BackupDiffer>()
+        .AddHostedService<ScheduleManager>()
+        .Configure<BackupsConfig>(builder.Configuration.GetSection(BackupsConfig.ConfigName))
+        .AddLogging(l =>
+        {
+            l.ClearProviders();
+            l.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+            l.AddNLog(config);
+        });
 
-host.Run();
 
+
+    var host = builder.Build();
+
+    host.Run();
+
+}
+catch (Exception ex)
+{
+    logger?.Error(ex, "Stopped program because of exception");
+    throw;
+}
+finally
+{
+    LogManager.Shutdown();
+}

@@ -106,12 +106,12 @@
             {
                 if (rule.Negate)
                 {
-                    if (ignore && rule.IsMatch(path))
+                    if (ignore && rule.ShouldIgnore(path))
                     {
                         ignore = false;
                     }
                 }
-                else if (!ignore && rule.IsMatch(path))
+                else if (!ignore && rule.ShouldIgnore(path))
                 {
                     ignore = true;
                 }

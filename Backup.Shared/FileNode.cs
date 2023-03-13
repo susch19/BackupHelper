@@ -9,14 +9,17 @@ public partial class FileNode : IFileNode<FileNode>, IFileNode
     [NoosonOrder(int.MinValue)]
     public int Version { get; set; }
 
+    [NoosonOrder(0)]
     public string Name { get; set; }
     [NoosonIgnore]
     public string FullPath { get; set; }
     [NoosonIgnore]
     public DateTime ChangeDate { get; set; }
+    [NoosonOrder(1)]
     public HashSet<uint> BackupFileIndeces { get; set; } = new();
     [NoosonIgnore]
     public FileNode? Parent { get; set; }
+    [NoosonOrder(2)]
     public List<FileNode> Children { get; set; } = new();
 
     private FileNode(string name) : this(name, null)

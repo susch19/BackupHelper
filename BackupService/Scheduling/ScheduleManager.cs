@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 using SevenZip;
 
 using System.Text;
-
 namespace BackupService.Scheduling;
 
 public class ScheduleManager : BackgroundService
@@ -16,13 +15,13 @@ public class ScheduleManager : BackgroundService
     private readonly BackupDiffer backupDiffer;
     private readonly ILogger<ScheduleManager> logger;
     private readonly List<NextSchedule> nextSchedules = new();
-    private readonly BackupsConfig config;
+    private readonly IOptionsMonitor<BackupsConfig> config;
     private bool saveCredential = true;
 
-    public ScheduleManager(BackupDiffer backupDiffer, IOptions<BackupsConfig> config, ILogger<ScheduleManager> logger)
+    public ScheduleManager(BackupDiffer backupDiffer, IOptionsMonitor<BackupsConfig> config, ILogger<ScheduleManager> logger)
     {
-        this.config = config.Value;
-        SevenZipBase.SetLibraryPath(this.config.SevenZipPath);
+        this.config = config;
+        SevenZipBase.SetLibraryPath(this.config.CurrentValue.SevenZipPath);
         this.backupDiffer = backupDiffer;
         this.logger = logger;
         backupConfigs = new();
@@ -31,16 +30,16 @@ public class ScheduleManager : BackgroundService
     public List<NextSchedule> WhatsNext(DateTime from, DateTime to)
     {
         nextSchedules.Clear();
-        CheckBackupConfigs(config, backupConfigs, ref saveCredential);
+        CheckBackupConfigs(config.CurrentValue, backupConfigs, logger, ref saveCredential);
         if (backupConfigs.Count == 0)
             return nextSchedules;
-        from = from.ToUniversalTime();
-        var offset = from.ToLocalTime() - from;
-        from = from.Add(offset);
+        TimeSpan offset = GetOffset(ref from);
         to = to.ToUniversalTime().Add(offset);
 
         foreach (var backupConfig in backupConfigs)
         {
+            if (!backupConfig.Enabled)
+                continue;
             var schedules = backupConfig.Schedules;
             if (schedules.Count == 0)
                 continue;
@@ -66,6 +65,14 @@ public class ScheduleManager : BackgroundService
         return nextSchedules;
     }
 
+    private static TimeSpan GetOffset(ref DateTime from)
+    {
+        from = from.ToUniversalTime();
+        var offset = from.ToLocalTime() - from;
+        from = from.Add(offset);
+        return offset;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         //var latestRun = backupConfig.Schedules.Max(x=>x.LastRun); //For executing missed runs
@@ -86,58 +93,12 @@ public class ScheduleManager : BackgroundService
                     await Task.Delay(15000, stoppingToken);
                     continue;
                 }
+                var lastRunLocalTime = lastRun;
+                var offset = GetOffset(ref lastRunLocalTime);
 
                 foreach (var nextSchedule in next.OrderBy(x => x.RunAt))
                 {
-                    var runAt = nextSchedule.RunAt - lastRun;
-                    if (runAt > TimeSpan.FromMilliseconds(100))
-                        await Task.Delay(runAt, stoppingToken);
-                    nextSchedule.Schedule.LastRun = DateTime.UtcNow;
-                    foreach (var item in nextSchedule.Config.ProgrammEvents
-                        .Where(x => x.Enabled
-                            && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.Before) > 0))
-                    {
-                        //item Execute
-                    }
-
-                    var sevenZipPW = nextSchedule.Config.Password;
-                    if (nextSchedule.Config.CredentialManager)
-                        sevenZipPW = Encoding.UTF8.GetString(CredentialHelper.GetCredentialsFor(sevenZipPW, "", "Passwort for 7zip Backup", ref saveCredential));
-
-                    var backupType = nextSchedule.Schedule.BackupType;
-                    foreach (var source in nextSchedule.Config.BackupSources)
-                    {
-                        var changesWithBackupType = backupDiffer.GetChangedFiles(source, nextSchedule.Config.BackupIgnorePath, true, nextSchedule.Config.Recursive
-                            , backupType);
-                        if (changesWithBackupType is not null)
-                        {
-                            backupType = changesWithBackupType.Value.backupType;
-                            var changes = changesWithBackupType.Value.changes;
-                            var firstTarget = "";
-                            for (int i = 0; i < nextSchedule.Config.TargetSources.Count; i++)
-                            {
-                                var target = nextSchedule.Config.TargetSources[i];
-                                Directory.CreateDirectory(target);
-                                if (!string.IsNullOrWhiteSpace(firstTarget))
-                                {
-                                    File.Copy(firstTarget, BackupDiffer.GetBackupFileName(new DirectoryInfo(source), target, backupType));
-                                    continue;
-                                }
-
-                                firstTarget = backupDiffer.BackupDetectedChanges(changes, source, target, sevenZipPW, backupType);
-                            }
-
-                            backupDiffer.StoreNewChangesInIndex(changes);
-                        }
-                    }
-
-
-                    foreach (var item in nextSchedule.Config.ProgrammEvents
-                        .Where(x => x.Enabled
-                            && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.After) > 0))
-                    {
-                        //item Execute
-                    }
+                    await ProcessSchedule(lastRunLocalTime, offset, nextSchedule, stoppingToken);
                 }
             }
             catch (Exception ex)
@@ -151,7 +112,109 @@ public class ScheduleManager : BackgroundService
         }
     }
 
-    public static void CheckBackupConfigs(BackupsConfig config, List<BackupTaskConfig> backupConfigs, ref bool saveCredential)
+    private async Task ProcessSchedule(DateTime lastRunLocalTime, TimeSpan offset, NextSchedule nextSchedule, CancellationToken stoppingToken)
+    {
+        var scheduleConfig = nextSchedule.Config;
+        var runAt = nextSchedule.RunAt.Add(offset * -1) - lastRunLocalTime;
+        if (runAt > TimeSpan.FromMilliseconds(100))
+            await Task.Delay(runAt, stoppingToken);
+        nextSchedule.Schedule.LastRun = DateTime.UtcNow;
+        foreach (var item in scheduleConfig.ProgrammEvents
+            .Where(x => x.Enabled
+                && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.Before) > 0))
+        {
+            item.Execute();
+        }
+
+        var sevenZipPW = scheduleConfig.Password;
+        if (scheduleConfig.CredentialManager)
+            sevenZipPW = Encoding.UTF8.GetString(CredentialHelper.GetCredentialsFor(sevenZipPW, "", "Passwort for 7zip Backup", ref saveCredential));
+
+        var backupType = nextSchedule.Schedule.BackupType;
+
+        BackupType detectedBackupType = BackupType.Full;
+        Dictionary<string, BackupFileChange> changes = new();
+        for (int sourceI = 0; sourceI < scheduleConfig.BackupSources.Count; sourceI++)
+        {
+            string? source = scheduleConfig.BackupSources[sourceI];
+            logger.LogInformation("Starting backup check for {}", source);
+
+            var newChanges = backupDiffer.GetChangedFiles(source, scheduleConfig.BackupIgnorePath, scheduleConfig.BackupIndexPath, scheduleConfig.FastDifferenceCheck, scheduleConfig.Recursive, backupType);
+            if (newChanges is null)
+                continue;
+
+            if (!scheduleConfig.SplitArchives)
+            {
+                if (changes is null)
+                {
+                    changes = newChanges.Value.changes;
+                    detectedBackupType = newChanges.Value.backupType;
+                }
+                else
+                {
+                    foreach (var item in newChanges.Value.changes)
+                    {
+                        changes[item.Key] = item.Value;
+                    }
+                    if (detectedBackupType < newChanges.Value.backupType)
+                        detectedBackupType = newChanges.Value.backupType;
+                }
+
+                continue;
+            }
+            else
+            {
+                changes = newChanges.Value.changes;
+                detectedBackupType = newChanges.Value.backupType;
+                BackupFiles(scheduleConfig, sevenZipPW, detectedBackupType, changes, source);
+            }
+
+            logger.LogInformation("Finished backup {}", scheduleConfig.Path);
+        }
+
+        if (!scheduleConfig.SplitArchives && changes.Count > 0)
+        {
+            BackupFiles(scheduleConfig, sevenZipPW, detectedBackupType, changes, "");
+        }
+
+
+
+        foreach (var item in scheduleConfig.ProgrammEvents
+            .Where(x => x.Enabled
+                && (x.BackupEventExecutionTime & Events.ActionRelativeToBackup.After) > 0))
+        {
+            item.Execute();
+        }
+        logger.LogInformation("Completed backup for {}", scheduleConfig.Path);
+    }
+
+    private void BackupFiles(BackupTaskConfig scheduleConfig, string sevenZipPW, BackupType detectedBackupType, Dictionary<string, BackupFileChange> changes, string source)
+    {
+        if (changes.Count > 0)
+        {
+            logger.LogInformation("Backuping {} Files for backup {}", changes.Count, scheduleConfig.Path);
+            var firstTarget = "";
+            for (int i = 0; i < scheduleConfig.TargetSources.Count; i++)
+            {
+                var target = scheduleConfig.TargetSources[i];
+                Directory.CreateDirectory(target);
+                if (!string.IsNullOrWhiteSpace(firstTarget))
+                {
+                    if (string.IsNullOrWhiteSpace(source))
+                        File.Copy(firstTarget, BackupDiffer.GetBackupFileName(scheduleConfig.ArchiveName, target, detectedBackupType));
+                    else
+                        File.Copy(firstTarget, BackupDiffer.GetBackupFileName(new DirectoryInfo(source).Name, target, detectedBackupType));
+                    continue;
+                }
+
+                firstTarget = backupDiffer.BackupDetectedChanges(changes, source, target, sevenZipPW, scheduleConfig.ArchiveName, detectedBackupType);
+            }
+
+            backupDiffer.StoreNewChangesInIndex(changes, scheduleConfig.BackupIndexPath);
+        }
+    }
+
+    public static void CheckBackupConfigs(BackupsConfig config, List<BackupTaskConfig> backupConfigs, ILogger? logger, ref bool saveCredential)
     {
         var enabledConfigs = backupConfigs.Where(x => x.Enabled).ToArray();
 
@@ -177,8 +240,9 @@ public class ScheduleManager : BackgroundService
                     backupConfigs.Add(taskConfig);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logger?.LogError(ex, "Error during config parsing");
             }
         }
     }

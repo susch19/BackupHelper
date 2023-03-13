@@ -34,21 +34,32 @@ public class PathValidator : ValidatorBase
             var paths = valueAsString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var path in paths)
             {
-                if (!CheckPath(path))
-                    return false;
+                if (CheckForDirectory)
+                {
+
+                    bool a = CheckPath(path, CheckForDirectory);
+                    if (!a && !CheckPath(path, false))
+                        return false;
+                }
+                else
+                {
+                    if (!CheckPath(path, false))
+                        return false;
+                }
+
             }
         }
         else
-            return CheckPath(valueAsString);
+            return CheckPath(valueAsString, CheckForDirectory);
         return true;
     }
 
-    private bool CheckPath(string path)
+    private bool CheckPath(string path, bool directory)
     {
         FileSystemInfo? info = null;
         try
         {
-            if (CheckForDirectory)
+            if (directory)
                 info = new DirectoryInfo(path);
             else
                 info = new System.IO.FileInfo(path);

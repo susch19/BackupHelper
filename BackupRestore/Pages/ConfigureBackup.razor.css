@@ -82,3 +82,10 @@
     display: grid;
     grid-template-columns: calc(100% - 12rem) 4rem 4rem 4rem;
 }
+
+.top-right-buttons {
+    display: flex;
+    justify-content: flex-end;
+    /*column-gap: 16px;*/
+}
+

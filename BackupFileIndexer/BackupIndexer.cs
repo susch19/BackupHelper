@@ -88,7 +88,7 @@ public partial class BackupIndexer
                         fileNameIndex.Index[index]
                             = globalIndex.Index[index]
                             = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
-
+                       
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
                         BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
                     }

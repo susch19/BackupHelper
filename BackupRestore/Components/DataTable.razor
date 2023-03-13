@@ -12,7 +12,7 @@
 
 <RadzenDataGrid TItem="TObject" @ref="objectsGrid" PageSize="5" AllowAlternatingRows="false" AllowFiltering="false"
                 AllowPaging="true" AllowSorting="false" EditMode="DataGridEditMode.Single"
-                Data="@Objects" RowUpdate="@OnUpdateRow" Sort="@Reset" Page="@Reset" Filter="@Reset">
+                Data="@Objects" Sort="@Reset" Page="@Reset" Filter="@Reset">
     <Columns>
         @Columns
         <RadzenDataGridColumn TItem="TObject" Context="command" Filterable="false" Sortable="false" TextAlign="TextAlign.Right" Width="154px">
@@ -46,6 +46,7 @@
 
     [Parameter]
     public Action<TObject>? FinishedEdit { get; set; }
+
     [Parameter]
     public Action<TObject>? CanceledEdit { get; set; }
 
@@ -63,10 +64,6 @@
         copyObject = command.Clone();
         originalObject = command;
         await objectsGrid.EditRow(command);
-    }
-
-    async Task OnUpdateRow(TObject command)
-    {
     }
 
     async Task SaveRow(TObject command)
@@ -103,7 +100,6 @@
         await objectsGrid.Reload();
 
     }
-
 
     async Task InsertRow(Func<TObject> creator)
     {
