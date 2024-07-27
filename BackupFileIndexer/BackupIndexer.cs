@@ -14,6 +14,7 @@ public partial class BackupIndexer
 
     public void CreateMetaDataFiles(BackupConfig backupConfig)
     {
+
         if (backupConfig is null)
             throw new ArgumentNullException(nameof(backupConfig));
 
@@ -30,91 +31,103 @@ public partial class BackupIndexer
             {
                 var (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(globalIndexPW, fs, header.iv);
                 globalIndex = fileNameIndex;
-                globalNodes = returnValues;
+                globalNodes.AddRange(returnValues);
             }
         }
 
-        foreach ((string backupName, string backupPath, string password) in backupConfig.BackupPaths)
+        foreach ((string backupName, string backupPath, string password, bool onlyLatest) in backupConfig.BackupPaths)
         {
             byte[] pw = CredentialHelper.GetCredentialsFor(backupName, password, "Backup Password", ref credManagerSave);
             var clearPassword = Encoding.UTF8.GetString(pw);
-            IGrouping<string?, FileInfo>[] groupFiles =
-                backupConfig
-                .BackupPaths
-                .SelectMany(x =>
-                    Directory
-                        .GetFiles(backupPath, "*.7z", SearchOption.AllDirectories)
-                        .Where(x => !x.EndsWith(".metadata.zip.aes"))
-                        .Select(x => new FileInfo(x)))
-                .GroupBy(x => x.DirectoryName)
-                .ToArray();
+            var files =
+                Directory
+                    .GetFiles(backupPath, "*.7z", SearchOption.AllDirectories)
+                    .Select(x => new FileInfo(x))
+                    .Select(x => (zip: x, meta: new FileInfo(GetMetaDataFileName(x))))
+                    .OrderBy(x => x.zip.Name)
+                    .ToArray();
 
-            for (int i = 0; i < groupFiles.Length; i++)
+            List<FileNode> returnValues = new();
+            BackupFileNameIndex? fileNameIndex = null;
+
+            int o = 0;
+            if (onlyLatest)
             {
-                FileInfo[] files = groupFiles[i].OrderBy(x => x.Name).ToArray();
+                o = Array.FindLastIndex(files, x => x.meta.Exists) + 1;
+            }
 
-                for (int o = 0; o < files.Length; o++)
+            for (; o < files.Length; o++)
+            {
+                (FileInfo file, FileInfo metaData) = files[o];
+                using SevenZipExtractor extractor = new(file.FullName, clearPassword);
+
+                if (metaData.Exists)
                 {
-                    FileInfo? file = files[o];
-                    using SevenZipExtractor extractor = new(file.FullName, clearPassword);
+                    (MetaDataHeader header, byte[] iv) header;
+                    using (var fs = metaData.OpenRead())
+                        header = BackupEncryptionHelper.ReadHeader(fs);
+                    if (header.header.Version != CurrentSupportedHeaderVersion)
+                        metaData.Delete();
+                    else
+                        continue;
+                }
 
-                    string metaDataFileName = GetMetaDataFileName(file);
 
-                    if (File.Exists(metaDataFileName))
+                (string, DateTime)[] dataLines = extractor.ArchiveFileData.Select(x => (x.FileName, x.LastWriteTime)).ToArray();
+
+                if (o > 0)
+                {
+                    if (fileNameIndex is null)
                     {
-                        (MetaDataHeader header, byte[] iv) header;
-                        using (var fs = File.OpenRead(metaDataFileName))
-                            header = BackupEncryptionHelper.ReadHeader(fs);
-                        if (header.header.Version != CurrentSupportedHeaderVersion)
-                            File.Delete(metaDataFileName);
-                        else
-                            continue;
-                    }
-
-
-                    (string, DateTime)[] dataLines = extractor.ArchiveFileData.Select(x => (x.FileName, x.LastWriteTime)).ToArray();
-
-                    List<FileNode> returnValues = new();
-                    BackupFileNameIndex fileNameIndex;
-                    if (o > 0)
-                    {
-                        string before = GetMetaDataFileName(files[o - 1]);
-                        using var fs = File.OpenRead(before);
+                        var metaBefore = files[o - 1].meta;
+                        using var fs = metaBefore.OpenRead();
                         var header = BackupEncryptionHelper.ReadHeader(fs);
 
                         (fileNameIndex, returnValues) = BackupEncryptionHelper.DecryptMetaData<FileNode>(pw, fs, header.iv);
-
-                        var index = globalIndex.GetNextIndex;
-                        fileNameIndex.Index[index]
-                            = globalIndex.Index[index]
-                            = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
-                       
-                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
-                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
-                    }
-                    else
-                    {
-                        fileNameIndex = new();
-                        var index = globalIndex.GetNextIndex;
-                        fileNameIndex.Index[index]
-                            = globalIndex.Index[index]
-                            = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
-
-                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
-                        BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
                     }
 
-                    {
-                        BackupEncryptionHelper.SortFileNodes(returnValues);
-                        using var fs = File.OpenWrite(metaDataFileName);
-                        var header = new MetaDataHeader() { Version = CurrentSupportedHeaderVersion };
-                        BackupEncryptionHelper.SaveMetaDataFile(pw, fs, header, fileNameIndex, returnValues);
-                    }
+                    var index = globalIndex.GetNextIndex;
+                    fileNameIndex.Index[index]
+                        = globalIndex.Index[index]
+                        = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+
+                    BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
+                    BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
                 }
+                else
+                {
+                    fileNameIndex ??= new();
+
+                    var index = globalIndex.GetNextIndex;
+                    fileNameIndex.Index[index]
+                        = globalIndex.Index[index]
+                        = new BackupFileInfo { FullPath = file.FullName, Name = file.Name, CreateDate = GetCreateDateOfBackup(file.Name) };
+
+                    BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, returnValues);
+                    BackupEncryptionHelper.ConvertToFileNodes(dataLines, index, globalNodes);
+                }
+
+                if (!onlyLatest || o + 1 == files.Length)
+                {
+                    if (onlyLatest)
+                    {
+                        foreach (var (_, meta) in files.Where(x => x.meta.Exists))
+                            meta.Delete();
+                    }
+
+                    BackupEncryptionHelper.SortFileNodes(returnValues);
+                    using var fs = metaData.OpenWrite();
+                    var header = new MetaDataHeader() { Version = CurrentSupportedHeaderVersion };
+                    BackupEncryptionHelper.SaveMetaDataFile(pw, fs, header, fileNameIndex, returnValues);
+                    returnValues.Clear();
+                    fileNameIndex = null;
+                }
+
+                Console.WriteLine($"Finished {o + 1} of {files.Length}, name {file.Name}");
             }
         }
 
-
+        if (!backupConfig.GlobalIndex.Disable)
         {
             File.Delete(backupConfig.GlobalIndex.Path);
             BackupEncryptionHelper.SortFileNodes(globalNodes);

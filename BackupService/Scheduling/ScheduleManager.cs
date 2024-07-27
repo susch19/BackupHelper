@@ -137,11 +137,14 @@ public class ScheduleManager : BackgroundService
         for (int sourceI = 0; sourceI < scheduleConfig.BackupSources.Count; sourceI++)
         {
             string? source = scheduleConfig.BackupSources[sourceI];
-            logger.LogInformation("Starting backup check for {}", source);
+            logger.LogInformation("Starting backup check for {source}", source);
 
             var newChanges = backupDiffer.GetChangedFiles(source, scheduleConfig.BackupIgnorePath, scheduleConfig.BackupIndexPath, scheduleConfig.FastDifferenceCheck, scheduleConfig.Recursive, backupType);
             if (newChanges is null)
+            {
+                detectedBackupType = backupType;
                 continue;
+            }
 
             if (!scheduleConfig.SplitArchives)
             {

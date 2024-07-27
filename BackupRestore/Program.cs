@@ -41,10 +41,10 @@ public class Programm
             .SetLogVerbosity(0)
             .SetTitle("BackupRestore");
 
-        AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
-        {
-            app.MainWindow.OpenAlertWindow("Fatal exception", error.ExceptionObject.ToString());
-        };
+        //AppDomain.CurrentDomain.UnhandledException += (sender, error) =>
+        //{
+        //    app.MainWindow.OpenAlertWindow("Fatal exception", error.ExceptionObject.ToString());
+        //};
         app.Run();
     }
 

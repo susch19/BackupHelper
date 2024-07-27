@@ -27,24 +27,25 @@
 }
 else if (storeView)
 {
-    <div class="store-grid">
-        <div>
-            <span>Speicherpfad:</span>
-        </div>
-        <div>
-            <InputText @bind-Value="dirPath" />
-        </div>
-        <div>
-            <RadzenButton Click="SelectDirPath">Select</RadzenButton>
-        </div>
-        <div>
-            <RadzenButton Click="SaveBackup" disabled="@(string.IsNullOrWhiteSpace(dirPath) ? true : false)">Restore</RadzenButton>
-        </div>
-        <div>
-            <RadzenButton Click="Reset">Start over</RadzenButton>
-        </div>
-
+<div class="store-grid">
+    <InputText @bind-Value="BackupPassword" type="password" placeholder="Backup Password" />
+    <div>
+        <span>Speicherpfad:</span>
     </div>
+    <div>
+        <InputText @bind-Value="dirPath" />
+    </div>
+    <div>
+        <RadzenButton Click="SelectDirPath">Select</RadzenButton>
+    </div>
+    <div>
+        <RadzenButton Click="SaveBackup" disabled="@(string.IsNullOrWhiteSpace(dirPath) ? true : false)">Restore</RadzenButton>
+    </div>
+    <div>
+        <RadzenButton Click="Reset">Start over</RadzenButton>
+    </div>
+
+</div>
     <VirtualTreeView GetNodes="GetNodes" @ref="virtualTree" Selectable="false" ChangeNode="ChangeNode" FileNameIndex="@fileNameIndex" FilterToDate="@filterDate" FilterFromDate="@filterMinDate" Password="@Password" />
 
 }
@@ -83,6 +84,7 @@ else
 @code {
 
     private string Password { get; set; }
+    private string BackupPassword { get; set; }
     bool mouseOverInput = false;
 
     private List<FileDisplayInfo> fileInfos = new();
@@ -253,7 +255,7 @@ else
 
     private void SaveBackup()
     {
-        RecoveryService.RestoreFiles(dirPath, Password, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
+        RecoveryService.RestoreFiles(dirPath, BackupPassword, flatFileInfos.Select(x => x.node).Where(x => x.IsSelected && !x.Children.Any()).ToArray(), fileNameIndex);
 
     }
 

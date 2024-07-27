@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 
 using SevenZip;
 
+using System.CodeDom.Compiler;
+using System.Globalization;
+
 IConfigurationRoot configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .Build();
